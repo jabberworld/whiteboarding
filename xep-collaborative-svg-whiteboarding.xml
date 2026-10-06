@@ -6,12 +6,14 @@
 <?xml-stylesheet type='text/xsl' href='xep.xsl'?>
 <xep>
 <header>
-  <title>Collaborative SVG Whiteboarding</title>
+  <title>Collaborative SVG Whiteboarding over Shared XML Editing</title>
   <abstract>
-    This specification defines a session-based collaborative whiteboarding
-    protocol that uses an SVG document as the shared canvas. It is designed to be
-    functionally compatible with the whiteboarding model used by the Psi Jabber
-    client, while being described explicitly at the XMPP protocol level.
+    This specification defines an SVG-based collaborative whiteboarding profile
+    that is transported using Shared XML Editing (SXE). It formalizes, at the XMPP
+    protocol level, the whiteboarding model implemented by the Psi instant
+    messaging client: a shared SVG document that participants edit collaboratively
+    and synchronize through SXE records. The specification is intended to be
+    sufficiently detailed that an independent client can interoperate with Psi.
   </abstract>
   <legal>
     <copyright>This XMPP Extension Protocol is copyright © 1999 – 2026 by the XMPP Standards Foundation (XSF).</copyright>
@@ -27,176 +29,1148 @@
   <approver>Council</approver>
   <dependencies>
     <spec>XMPP Core</spec>
-    <spec>XEP-0214</spec>
+    <spec>XEP-0030</spec>
+    <spec>XEP-0045</spec>
+    <spec>XEP-0284</spec>
   </dependencies>
   <supersedes/>
   <supersededby/>
   <shortname>svg-whiteboard</shortname>
   <author>
-    <firstname>Based on analysis</firstname>
-    <surname>of Psi whiteboarding implementation</surname>
-    <email></email>
-    <jid></jid>
+    <firstname>Draft</firstname>
+    <surname>Editor</surname>
+    <email>editor@example.org</email>
+    <jid>editor@example.org</jid>
   </author>
   <revision>
     <version>0.1</version>
-    <date>2026-10-04</date>
-    <initials>draft</initials>
-    <remark>Initial draft based on Psi whiteboarding analysis.</remark>
-  </revision>
-</header>
-  <revision>
-    <version>0.1</version>
-    <date>2026-10-04</date>
-    <initials>draft</initials>
-    <remark>Initial draft based on Psi whiteboarding analysis.</remark>
+    <date>2026-10-06</date>
+    <initials>de</initials>
+    <remark>Initial draft reverse-engineered from the Psi whiteboarding implementation.</remark>
   </revision>
 </header>
 
 <section1 topic='Introduction' anchor='intro'>
   <p>
-    XEP-0113 ("Simple Whiteboarding") defines a minimal, message-based
-    whiteboarding protocol. While simple, it does not provide a shared document
-    model suitable for richer collaborative editing operations.
+    <span class='ref'>XEP-0113: Simple Whiteboarding</span> defines a deliberately
+    minimal whiteboarding protocol: a &lt;path/&gt; element carrying a restricted
+    subset of SVG path data, plus &lt;move/&gt; and &lt;delete/&gt; elements, all
+    embedded in &lt;message/&gt; stanzas qualified by the
+    <tt>http://jabber.org/protocol/swb</tt> namespace. That protocol is stateless
+    and command-oriented: participants exchange incremental commands and never
+    share a document object.
   </p>
   <p>
-    The Psi Jabber client implements a session-based collaborative whiteboarding
-    model where participants share a single SVG DOM document synchronized in
-    real time. This specification formalizes that model at the XMPP protocol level.
+    The Psi instant messaging client implements a different, richer whiteboarding
+    model. Instead of exchanging commands, participants share a single SVG
+    document and synchronize the edits (node insertions, moves, attribute and
+    character-data changes, and node removals) through
+    <span class='ref'>XEP-0284: Shared XML Editing</span> (SXE). The shared XML
+    object is an SVG document rooted at <tt>&lt;svg/&gt;</tt> in the namespace
+    <tt>http://www.w3.org/2000/svg</tt>; that same URI is used as the feature that
+    identifies the SVG whiteboard application.
+  </p>
+  <p>
+    Psi's implementation predates the Jingle-based session management that
+    XEP-0284 later standardized. It negotiates SXE sessions using dedicated
+    &lt;negotiation/&gt; elements inside the &lt;sxe/&gt; payload of
+    &lt;message/&gt; stanzas, under the namespace
+    <tt>http://jabber.org/protocol/sxe</tt>. This specification documents that
+    Psi-native profile, because it is the profile that a third-party client must
+    implement in order to interoperate with Psi as it exists today. A mapping to
+    the XEP-0284 Jingle-based profile is noted where relevant.
+  </p>
+  <p>
+    This specification does not attempt to be wire-compatible with XEP-0113.
+    Clients that support both SHOULD advertise the two feature namespaces
+    separately and negotiate the appropriate profile per session.
   </p>
 </section1>
 
 <section1 topic='Requirements' anchor='reqs'>
+  <p>The protocol defined herein provides the following functionality:</p>
   <ol>
-    <li>Define feature namespace for SVG-based collaborative whiteboarding.</li>
-    <li>Specify session negotiation for a shared whiteboard document.</li>
-    <li>Define initial SVG document structure and conventions.</li>
-    <li>Specify canonical conventions for elements, identifiers, transforms and layering.</li>
-    <li>Describe DOM-level semantics for collaborative operations.</li>
+    <li>Freehand drawing and geometric editing on a shared canvas.</li>
+    <li>A shared, self-describing document (SVG) that any participant can edit.</li>
+    <li>Support for one-to-one sessions and for multi-user sessions hosted in a Multi-User Chat room or similar host.</li>
+    <li>Synchronization of concurrent edits without a mandatory central server.</li>
+    <li>Reuse of an existing collaborative XML editing protocol rather than defining a new command set.</li>
+    <li>No server modifications beyond what XMPP Core, Service Discovery, Multi-User Chat and Shared XML Editing already require.</li>
+    <li>Independence from any particular GUI toolkit or implementation language.</li>
   </ol>
 </section1>
 
-<section1 topic='Terminology' anchor='terms'>
-  <p><strong>Shared SVG Document</strong>: A single SVG DOM tree (root &lt;svg&gt;) representing whiteboard state, synchronized across participants.</p>
-  <p><strong>Whiteboard Session</strong>: A negotiated collaborative session for editing the Shared SVG Document.</p>
-  <p><strong>Collaborative XML Editing</strong>: Mechanism to synchronize DOM mutations (e.g. XEP-0214).</p>
-  <p><strong>Whiteboard Element</strong>: SVG element representing drawable content (&lt;path&gt;, &lt;image&gt;, &lt;g&gt;).</p>
-  <p><strong>Canvas</strong>: Drawing area defined by &lt;svg&gt; viewBox.</p>
+<section1 topic='Glossary' anchor='glossary'>
+  <dl>
+    <di>
+      <dt>Shared SVG Document</dt>
+      <dd>A single SVG document, rooted at <tt>&lt;svg/&gt;</tt>, that represents the whiteboard contents and is kept synchronized among all participants.</dd>
+    </di>
+    <di>
+      <dt>Whiteboard Session</dt>
+      <dd>A negotiated SXE session whose shared XML document is an SVG document and whose negotiated feature list includes <tt>http://www.w3.org/2000/svg</tt>.</dd>
+    </di>
+    <di>
+      <dt>Host</dt>
+      <dd>The JID to which SXE messages are sent for relaying to the other participants; this can be the initiator (one-to-one) or a Multi-User Chat room or a specialized editing component.</dd>
+    </di>
+    <di>
+      <dt>GUID</dt>
+      <dd>A globally unique identifier used as the session identifier (the &lt;sxe/&gt; 'session' attribute).</dd>
+    </di>
+    <di>
+      <dt>Record</dt>
+      <dd>The state of a single DOM node of the shared document, identified by a Record ID (RID). A record stores fields such as the node type, parent, name, namespace, character data and primary weight.</dd>
+    </di>
+    <di>
+      <dt>RID</dt>
+      <dd>The Record ID: a GUID assigned to a record when it is created. A RID is distinct from the SVG <tt>id</tt> attribute of an element.</dd>
+    </di>
+    <di>
+      <dt>Edit</dt>
+      <dd>A single SXE element (&lt;new/&gt;, &lt;set/&gt; or &lt;remove/&gt;) that creates, changes or removes a record.</dd>
+    </di>
+    <di>
+      <dt>primary-weight</dt>
+      <dd>A number attached to each record that determines the ordering of a node among its siblings. Higher weight renders later (on top).</dd>
+    </di>
+    <di>
+      <dt>secondary weight</dt>
+      <dd>The tie-breaker used when two sibling records have equal primary weight: the RIDs are compared character by character by Unicode value; the greater RID has greater weight.</dd>
+    </di>
+    <di>
+      <dt>Canvas</dt>
+      <dd>The drawing area of the whiteboard, defined by the <tt>viewBox</tt> attribute of the root &lt;svg/&gt; element.</dd>
+    </di>
+  </dl>
 </section1>
 
 <section1 topic='Feature Discovery' anchor='disco'>
   <p>
-    Entities supporting this profile MUST advertise the feature
-    <tt>http://www.w3.org/2000/svg</tt> via Service Discovery (XEP-0030).
-    This feature URI serves as the capability marker for SVG-based collaborative
-    whiteboarding (consistent with the Psi implementation).
+    Support for this profile is advertised through
+    <span class='ref'>XEP-0030: Service Discovery</span>. An entity that supports
+    collaborative SVG whiteboarding MUST advertise both of the following features
+    in its service discovery information:
+  </p>
+  <ul>
+    <li><tt>http://jabber.org/protocol/sxe</tt> — the entity supports Shared XML Editing.</li>
+    <li><tt>http://www.w3.org/2000/svg</tt> — the entity supports the SVG whiteboard application type.</li>
+  </ul>
+  <p>
+    An initiating entity MUST NOT start a whiteboard session unless the peer
+    advertises both features. This requirement follows directly from Psi's
+    capability check, which verifies the SXE namespace together with the
+    requested application features.
+  </p>
+  <example caption='Client advertises SXE and SVG whiteboard support'>
+    <![CDATA[
+<iq from='laertes@shakespeare.lit/castle'
+    to='kingclaudius@shakespeare.lit/castle'
+    id='disco1'
+    type='result'>
+  <query xmlns='http://jabber.org/protocol/disco#info'>
+    <identity category='client' type='pc' name='Psi'/>
+    <feature var='http://jabber.org/protocol/sxe'/>
+    <feature var='http://www.w3.org/2000/svg'/>
+  </query>
+</iq>
+]]></example>
+</section1>
+
+<section1 topic='Session Negotiation' anchor='negotiation'>
+  <p>
+    All SXE payloads are carried in &lt;message/&gt; stanzas. Each payload is a
+    &lt;sxe/&gt; element qualified by the namespace
+    <tt>http://jabber.org/protocol/sxe</tt>. The &lt;sxe/&gt; element carries two
+    REQUIRED attributes, described in <link url='#def-sxe'>Section 9.1</link>:
+    <tt>session</tt> (the session GUID) and <tt>id</tt> (a per-sender unique
+    identifier for that payload). Negotiation messages additionally contain a
+    &lt;negotiation/&gt; child; a message MUST NOT mix &lt;negotiation/&gt; with
+    ordinary edits.
+  </p>
+
+  <section2 topic='Initiating a Session' anchor='negotiation-invite'>
+    <p>
+      To start a whiteboard session, the initiator generates a session GUID,
+      creates the initial Shared SVG Document (see
+      <link url='#initial-doc'>Section 8</link>), and sends an &lt;invitation/&gt;
+      listing the required application features. The feature list MUST include
+      <tt>http://www.w3.org/2000/svg</tt>.
+    </p>
+    <example caption='Initiator sends an invitation'>
+      <![CDATA[
+<message from='kingclaudius@shakespeare.lit/castle'
+         to='laertes@shakespeare.lit/castle'>
+  <sxe xmlns='http://jabber.org/protocol/sxe'
+       session='851ba2' id='1'>
+    <negotiation>
+      <invitation>
+        <feature>http://www.w3.org/2000/svg</feature>
+      </invitation>
+    </negotiation>
+  </sxe>
+</message>
+]]></example>
+    <p>
+      In a multi-user context the same stanza is sent with
+      <tt>type='groupchat'</tt> to the bare room JID (see
+      <link url='#muc'>Section 7</link>).
+    </p>
+  </section2>
+
+  <section2 topic='Accepting an Invitation' anchor='negotiation-accept'>
+    <p>
+      A receiver of an &lt;invitation/&gt; whose feature list contains a feature it
+      supports accepts the invitation by returning
+      &lt;accept-invitation/&gt; to the inviter.
+    </p>
+    <example caption='Invitee accepts the invitation'>
+      <![CDATA[
+<message from='laertes@shakespeare.lit/castle'
+         to='kingclaudius@shakespeare.lit/castle'>
+  <sxe xmlns='http://jabber.org/protocol/sxe'
+       session='851ba2' id='2'>
+    <negotiation>
+      <accept-invitation/>
+    </negotiation>
+  </sxe>
+</message>
+]]></example>
+  </section2>
+
+  <section2 topic='Declining an Invitation' anchor='negotiation-decline'>
+    <p>
+      If the receiver does not support the offered application features, or the
+      user declines, it returns &lt;decline-invitation/&gt;. When the receiver
+      already participates in a session with the initiator and prefers that
+      session, it MAY include one or more &lt;alternative-session/&gt; children
+      naming the existing session GUID.
+    </p>
+    <example caption='Invitee declines but suggests an existing session'>
+      <![CDATA[
+<message from='laertes@shakespeare.lit/castle'
+         to='kingclaudius@shakespeare.lit/castle'>
+  <sxe xmlns='http://jabber.org/protocol/sxe'
+       session='851ba2' id='2'>
+    <negotiation>
+      <decline-invitation>
+        <alternative-session>6f2c19</alternative-session>
+      </decline-invitation>
+    </negotiation>
+  </sxe>
+</message>
+]]></example>
+    <p>
+      Either party MAY abandon an in-progress negotiation with
+      &lt;abort-negotiation/&gt;. If the session has not yet been established, this
+      deletes the pending session; if it has been established, the negotiation is
+      torn down but the session remains.
+    </p>
+  </section2>
+
+  <section2 topic='Joining an Existing Session' anchor='negotiation-join'>
+    <p>
+      A participant that learns of an existing session (for example from presence
+      advertising or from a MUC room) joins it by sending &lt;connect-request/&gt;
+      to the host.
+    </p>
+    <example caption='Joiner sends a connect request'>
+      <![CDATA[
+<message from='laertes@shakespeare.lit/castle'
+         to='kingclaudius@shakespeare.lit/castle'>
+  <sxe xmlns='http://jabber.org/protocol/sxe'
+       session='851ba2' id='3'>
+    <negotiation>
+      <connect-request/>
+    </negotiation>
+  </sxe>
+</message>
+]]></example>
+    <p>
+      In a one-to-one session the initiator MUST offer the document state by
+      replying with &lt;history-offer/&gt;. In a multi-user session both the host
+      and the initiator MUST offer the state, and other participants MAY offer it;
+      the joiner SHOULD prefer an offer from the host or initiator.
+    </p>
+    <example caption='Host offers the document state'>
+      <![CDATA[
+<message from='kingclaudius@shakespeare.lit/castle'
+         to='laertes@shakespeare.lit/castle'>
+  <sxe xmlns='http://jabber.org/protocol/sxe'
+       session='851ba2' id='4'>
+    <negotiation>
+      <history-offer/>
+    </negotiation>
+  </sxe>
+</message>
+]]></example>
+    <p>
+      The joiner accepts one offer with &lt;accept-history/&gt; and MUST ignore
+      edits received before it has chosen an offer. Offers not chosen SHOULD be
+      refused with &lt;refuse-history/&gt;.
+    </p>
+    <example caption='Joiner accepts the state offer'>
+      <![CDATA[
+<message from='laertes@shakespeare.lit/castle'
+         to='kingclaudius@shakespeare.lit/castle'>
+  <sxe xmlns='http://jabber.org/protocol/sxe'
+       session='851ba2' id='5'>
+    <negotiation>
+      <accept-history/>
+    </negotiation>
+  </sxe>
+</message>
+]]></example>
+  </section2>
+
+  <section2 topic='Transferring the Document State' anchor='negotiation-state'>
+    <p>
+      The state is transferred as a sequence of edits bracketed by
+      &lt;document-begin/&gt; and &lt;document-end/&gt;, all inside the
+      &lt;negotiation/&gt; element:
+    </p>
+    <ol>
+      <li>The sender emits &lt;document-begin/&gt; and simultaneously snapshots the document. Its <tt>prolog</tt> attribute carries the XML prolog (including the DOCTYPE) as a <tt>data:</tt> URI (RFC 2397). In a one-to-one session the sender MAY also set <tt>available-uuid-prefix</tt> to reserve a RID prefix for the receiver.</li>
+      <li>The sender emits the snapshot as a sequence of &lt;new/&gt; edits, optionally followed by the &lt;set/&gt; edits that have occurred since version 0.</li>
+      <li>The sender emits &lt;document-end/&gt;. Its <tt>used-sxe-ids</tt> attribute is a semicolon-separated list of the &lt;sxe/&gt; payload IDs already seen by the sender.</li>
+    </ol>
+    <p>
+      While the state is being sent, the sender MUST NOT send any other edits. The
+      receiver MUST NOT apply incoming edits until &lt;document-end/&gt; has been
+      processed.
+    </p>
+    <example caption='Starting the transfer of a new whiteboard'>
+      <![CDATA[
+<message from='kingclaudius@shakespeare.lit/castle'
+         to='laertes@shakespeare.lit/castle'>
+  <sxe xmlns='http://jabber.org/protocol/sxe'
+       session='851ba2' id='6'>
+    <negotiation>
+      <document-begin prolog='data:text/xml,%3C%3Fxml%20version%3D%271.0%27%3F%3E%0A%3C%21DOCTYPE%20svg%20PUBLIC%20%27-%2F%2FW3C%2F%2FDTD%20SVG%201.1%2F%2FEN%27%20%27http%3A%2F%2Fwww.w3.org%2FGraphics%2FSVG%2F1.1%2FDTD%2Fsvg11.dtd%27%3E' available-uuid-prefix='1'/>
+      <new rid='0' type='element' ns='http://www.w3.org/2000/svg' name='svg' parent='' primary-weight='0'/>
+      <new rid='1' type='attr' name='version' chdata='1.2' parent='0' primary-weight='0'/>
+      <new rid='2' type='attr' name='baseProfile' chdata='tiny' parent='0' primary-weight='0'/>
+      <new rid='3' type='attr' name='viewBox' chdata='0 0 600 400' parent='0' primary-weight='0'/>
+      <document-end used-sxe-ids=''/>
+    </negotiation>
+  </sxe>
+</message>
+]]></example>
+  </section2>
+
+  <section2 topic='Ending a Session' anchor='negotiation-end'>
+    <p>
+      When an entity leaves an established session it MUST notify the other
+      participants with &lt;left-session/&gt; so that the remaining participants
+      can update their user interfaces. The shared document itself is not modified
+      by this notification.
+    </p>
+    <example caption='A participant leaves the session'>
+      <![CDATA[
+<message from='laertes@shakespeare.lit/castle'
+         to='kingclaudius@shakespeare.lit/castle'>
+  <sxe xmlns='http://jabber.org/protocol/sxe'
+       session='851ba2' id='7'>
+    <negotiation>
+      <left-session/>
+    </negotiation>
+  </sxe>
+</message>
+]]></example>
+  </section2>
+</section1>
+
+<section1 topic='Editing the Whiteboard' anchor='editing'>
+  <p>
+    Once a participant has received the initial state it edits the shared SVG
+    document by sending edits. Every edit is a child of an &lt;sxe/&gt; element
+    (with &lt;negotiation/&gt; absent) and MAY be batched: a single &lt;sxe/&gt;
+    payload can contain any number of &lt;new/&gt;, &lt;set/&gt; and &lt;remove/&gt;
+    elements.
+  </p>
+  <p>
+    This section describes, for each whiteboard operation, the SVG DOM mutation it
+    performs and the corresponding SXE edits. The examples use short, readable
+    RIDs; real implementations use GUIDs. RID <tt>0</tt> is the root
+    &lt;svg/&gt; element introduced in
+    <link url='#negotiation-state'>Section 5.5</link>.
+  </p>
+
+  <section2 topic='Drawing a Path' anchor='edit-path'>
+    <p>
+      Freehand drawing creates a new &lt;path/&gt; element, its <tt>d</tt>
+      attribute holding the path data, and presentation attributes such as
+      <tt>stroke</tt> and <tt>stroke-width</tt>. Every element that can later be
+      selected, transformed, reordered, grouped or deleted MUST also carry an
+      <tt>id</tt> attribute that is unique within the document; the
+      implementation generates it with an application prefix (Psi uses
+      <tt>e</tt> followed by a UUID).
+    </p>
+    <example caption='Drawing a red triangle'>
+      <![CDATA[
+<message from='kingclaudius@shakespeare.lit/castle'
+         to='laertes@shakespeare.lit/castle'>
+  <sxe xmlns='http://jabber.org/protocol/sxe'
+       session='851ba2' id='8'>
+    <new rid='8' type='element' name='path' parent='0' primary-weight='1'/>
+    <new rid='9' type='attr' name='id' chdata='e1f2a3b4' parent='8' primary-weight='0'/>
+    <new rid='10' type='attr' name='d' chdata='M 100 100 L 300 100 L 200 300 Z' parent='8' primary-weight='0'/>
+    <new rid='11' type='attr' name='stroke' chdata='#ff0000' parent='8' primary-weight='0'/>
+    <new rid='12' type='attr' name='stroke-width' chdata='2' parent='8' primary-weight='0'/>
+    <new rid='13' type='attr' name='fill' chdata='none' parent='8' primary-weight='0'/>
+  </sxe>
+</message>
+]]></example>
+    <p>
+      Implementations MAY smooth freehand input by emitting quadratic or cubic
+      curve commands (<tt>Q</tt>, <tt>C</tt>) in the <tt>d</tt> attribute rather
+      than a dense sequence of line commands. Psi, for example, emits quadratic
+      curves. The path data grammar is recalled in
+      <link url='#grammar-d'>Section 9.8</link>.
+    </p>
+  </section2>
+
+  <section2 topic='Moving and Transforming an Element' anchor='edit-transform'>
+    <p>
+      Geometric transformations are represented by the SVG <tt>transform</tt>
+      attribute. There is no separate "move" command. Translating, rotating or
+      scaling a selection updates the <tt>transform</tt> attribute of the affected
+      element (or group) with a new value, carried as a &lt;set/&gt; edit on that
+      attribute's record. Because the attribute record already exists, the edit
+      uses its RID and the next version number.
+    </p>
+    <example caption='Moving the path from the previous example 100 pixels right and down'>
+      <![CDATA[
+<message from='kingclaudius@shakespeare.lit/castle'
+         to='laertes@shakespeare.lit/castle'>
+  <sxe xmlns='http://jabber.org/protocol/sxe'
+       session='851ba2' id='9'>
+    <new rid='14' type='attr' name='transform' chdata='matrix(1 0 0 1 100 100)' parent='8' primary-weight='0'/>
+  </sxe>
+</message>
+]]></example>
+    <p>
+      Subsequent transformations are expressed as further &lt;set/&gt; edits to
+      RID <tt>14</tt>, each incrementing <tt>version</tt>:
+    </p>
+    <example caption='Applying an additional rotation'>
+      <![CDATA[
+<sxe xmlns='http://jabber.org/protocol/sxe' session='851ba2' id='10'>
+  <set rid='14' version='1' chdata='matrix(0.707 0.707 -0.707 0.707 100 100)'/>
+</sxe>
+]]></example>
+  </section2>
+
+  <section2 topic='Changing Style' anchor='edit-style'>
+    <p>
+      Changing the stroke colour, fill or stroke width of an existing element
+      updates the corresponding attribute record with a &lt;set/&gt; edit.
+    </p>
+    <example caption='Recolouring the path and thickening its stroke'>
+      <![CDATA[
+<sxe xmlns='http://jabber.org/protocol/sxe' session='851ba2' id='11'>
+  <set rid='11' version='1' chdata='#0000ff'/>
+  <set rid='12' version='1' chdata='6'/>
+</sxe>
+]]></example>
+    <p>
+      A partial replacement of the character data MAY use the
+      <tt>replacefrom</tt> and <tt>replacen</tt> attributes instead of replacing
+      the entire value:
+    </p>
+    <example caption='Replacing characters 1..4 of the stroke width value'>
+      <![CDATA[
+<sxe xmlns='http://jabber.org/protocol/sxe' session='851ba2' id='12'>
+  <set rid='11' version='2' replacefrom='1' replacen='3' chdata='ff'/>
+</sxe>
+]]></example>
+  </section2>
+
+  <section2 topic='Erasing an Element' anchor='edit-delete'>
+    <p>
+      Erasing removes the element from the document with one or more
+      &lt;remove/&gt; edits. Removing an element also removes its attribute and
+      descendant records; an implementation MAY emit a &lt;remove/&gt; for each
+      record or rely on the removal of the subtree. A &lt;remove/&gt; may target
+      any record type (element, attribute, text, comment or processing
+      instruction).
+    </p>
+    <example caption='Erasing the path'>
+      <![CDATA[
+<sxe xmlns='http://jabber.org/protocol/sxe' session='851ba2' id='13'>
+  <remove rid='8'/>
+</sxe>
+]]></example>
+    <p>
+      After a record has been removed its RID MUST NOT be reused within the
+      session.
+    </p>
+  </section2>
+
+  <section2 topic='Grouping Elements' anchor='edit-group'>
+    <p>
+      Grouping two or more selected elements creates a new &lt;g/&gt; element and
+      reparents the selected element records under it. The group is created with a
+      <tt>primary-weight</tt> that places it at the stacking position of the
+      topmost grouped element, and each selected element's <tt>parent</tt> field is
+      changed to the group's RID.
+    </p>
+    <example caption='Grouping the path (rid 8) with a second element (rid 20)'>
+      <![CDATA[
+<sxe xmlns='http://jabber.org/protocol/sxe' session='851ba2' id='14'>
+  <new rid='30' type='element' name='g' parent='0' primary-weight='5'/>
+  <new rid='31' type='attr' name='id' chdata='e5c7d9e0' parent='30' primary-weight='0'/>
+  <set rid='8' version='1' parent='30'/>
+  <set rid='20' version='1' parent='30'/>
+</sxe>
+]]></example>
+  </section2>
+
+  <section2 topic='Ungrouping Elements' anchor='edit-ungroup'>
+    <p>
+      Ungrouping moves each child of a &lt;g/&gt; back to the group's parent (or
+      to the root), preserving the stacking order, composes the group's
+      <tt>transform</tt> into each child's <tt>transform</tt>, and removes the
+      group. Composition is required so that the visual result is unchanged.
+    </p>
+    <example caption='Ungrouping rid 30'>
+      <![CDATA[
+<sxe xmlns='http://jabber.org/protocol/sxe' session='851ba2' id='15'>
+  <set rid='14' version='2' chdata='matrix(1 0 0 1 100 100) matrix(0.707 0.707 -0.707 0.707 100 100)'/>
+  <set rid='8' version='2' parent='0'/>
+  <set rid='20' version='2' parent='0'/>
+  <remove rid='30'/>
+</sxe>
+]]></example>
+  </section2>
+
+  <section2 topic='Changing the Stacking Order' anchor='edit-zorder'>
+    <p>
+      Stacking order is determined by the records' <tt>primary-weight</tt> values
+      among siblings (higher weight is drawn later, i.e. on top). Bringing an
+      element forward sets its <tt>primary-weight</tt> above that of the element it
+      should pass; sending it backward sets it below.
+    </p>
+    <example caption='Bringing the path to the front'>
+      <![CDATA[
+<sxe xmlns='http://jabber.org/protocol/sxe' session='851ba2' id='16'>
+  <set rid='8' version='3' primary-weight='9999'/>
+</sxe>
+]]></example>
+    <p>
+      Because ordering is also affected by the secondary weight (the RID
+      comparison) when primary weights are equal, implementations SHOULD choose
+      primary-weight values that leave room for later insertions, for example by
+      using fractional weights such as <tt>3.5</tt> to place an element between
+      weights <tt>3</tt> and <tt>4</tt>.
+    </p>
+  </section2>
+
+  <section2 topic='Inserting an Image' anchor='edit-image'>
+    <p>
+      Inserting an image creates an &lt;image/&gt; element with the SVG
+      positioning attributes <tt>x</tt>, <tt>y</tt>, <tt>width</tt> and
+      <tt>height</tt>, and an <tt>xlink:href</tt> attribute. To keep the shared
+      document self-contained, the image data SHOULD be embedded as a
+      <tt>data:</tt> URI. The XLink namespace is
+      <tt>http://www.w3.org/1999/xlink</tt>.
+    </p>
+    <example caption='Inserting an embedded PNG image'>
+      <![CDATA[
+<sxe xmlns='http://jabber.org/protocol/sxe' session='851ba2' id='17'>
+  <new rid='40' type='element' name='image' parent='0' primary-weight='6'/>
+  <new rid='41' type='attr' name='id' chdata='e9a8b7c6' parent='40' primary-weight='0'/>
+  <new rid='42' type='attr' name='x' chdata='120' parent='40' primary-weight='0'/>
+  <new rid='43' type='attr' name='y' chdata='80' parent='40' primary-weight='0'/>
+  <new rid='44' type='attr' name='width' chdata='64' parent='40' primary-weight='0'/>
+  <new rid='45' type='attr' name='height' chdata='64' parent='40' primary-weight='0'/>
+  <new rid='46' type='attr' ns='http://www.w3.org/1999/xlink' name='xlink:href'
+       chdata='data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...' parent='40' primary-weight='0'/>
+</sxe>
+]]></example>
+  </section2>
+
+  <section2 topic='Resizing the Canvas' anchor='edit-viewbox'>
+    <p>
+      The canvas geometry is controlled by the <tt>viewBox</tt> attribute of the
+      root &lt;svg/&gt; element. Resizing the canvas is a &lt;set/&gt; edit on that
+      attribute's record (RID <tt>3</tt> in the initial state).
+    </p>
+    <example caption='Enlarging the canvas'>
+      <![CDATA[
+<sxe xmlns='http://jabber.org/protocol/sxe' session='851ba2' id='18'>
+  <set rid='3' version='1' chdata='0 0 1024 768'/>
+</sxe>
+]]></example>
+  </section2>
+
+  <section2 topic='Clearing the Canvas' anchor='edit-clear'>
+    <p>
+      There is no dedicated clear command. Clearing the whiteboard removes every
+      drawable child element of the root &lt;svg/&gt;. Non-drawable metadata such
+      as &lt;title/&gt;, &lt;desc/&gt; and &lt;defs/&gt; SHOULD be preserved.
+    </p>
+    <example caption='Clearing the canvas'>
+      <![CDATA[
+<sxe xmlns='http://jabber.org/protocol/sxe' session='851ba2' id='19'>
+  <remove rid='8'/>
+  <remove rid='20'/>
+  <remove rid='40'/>
+</sxe>
+]]></example>
+  </section2>
+</section1>
+
+<section1 topic='Multi-User Whiteboards' anchor='muc'>
+  <p>
+    A whiteboard can be hosted in a Multi-User Chat room (or a specialized
+    component). The host is the room's bare JID; SXE payloads are sent as
+    <tt>type='groupchat'</tt> messages to that JID and are reflected by the room
+    to all occupants. The application feature and the SXE namespace are discovered
+    from the room's service discovery information.
+  </p>
+  <p>
+    Broadcast presence within the room MAY advertise the session using an
+    &lt;sxe/&gt; element carrying the session GUID and an optional descriptive
+    name:
+  </p>
+  <example caption='Advertising a whiteboard session in presence'>
+    <![CDATA[
+<presence from='laertes@shakespeare.lit/castle'
+          to='chamber@conference.shakespeare.lit/laertes'>
+  <sxe xmlns='http://jabber.org/protocol/sxe'
+       session='851ba2'
+       name='Chamber Whiteboard'/>
+</presence>
+]]></example>
+  <p>
+    Notice of a participant leaving is the same &lt;left-session/&gt; payload
+    defined in <link url='#negotiation-end'>Section 5.6</link>. Because every
+    occupant receives every edit, a room-based session permits more than two
+    simultaneous editors without any additional protocol.
   </p>
 </section1>
 
-<section1 topic='Session Negotiation and Lifecycle' anchor='session'>
-  <ol>
-    <li>The whiteboard session MUST be a collaborative XML editing session whose shared document is an SVG document with root &lt;svg xmlns="http://www.w3.org/2000/svg"&gt;.</li>
-    <li>Initiator MUST provide initial Shared SVG Document; if none provided, use Empty Whiteboard Document (Section 6).</li>
-    <li>Receivers of invitations offering this feature SHOULD be prompted to accept/decline.</li>
-    <li>All participants have edit rights by default (policy out of scope).</li>
-    <li>Session termination ends the collaborative editing session.</li>
-    <li>Peer departure is notified to remaining participants; document state persists.</li>
-  </ol>
-</section1>
-
 <section1 topic='Initial Document' anchor='initial-doc'>
-  <example caption='Empty Whiteboard Document'><![CDATA[
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
-  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg xmlns="http://www.w3.org/2000/svg"
-     version="1.2"
-     viewBox="0 0 600 400"
-     baseProfile="tiny" />
+  <p>
+    When a session is started without a user-supplied document, the initiator MUST
+    initialize it to the empty whiteboard document shown below. The document is
+    an SVG document whose root is &lt;svg/&gt; in the namespace
+    <tt>http://www.w3.org/2000/svg</tt>, whose canvas is defined by
+    <tt>viewBox</tt>, and which carries the SVG 1.1 Tiny profile marker
+    <tt>baseProfile='tiny'</tt>.
+  </p>
+  <example caption='Empty whiteboard document (prolog omitted)'>
+    <![CDATA[
+<svg xmlns='http://www.w3.org/2000/svg'
+     version='1.2'
+     viewBox='0 0 600 400'
+     baseProfile='tiny'/>
 ]]></example>
   <ul>
-    <li>Root MUST be &lt;svg&gt; in namespace <tt>http://www.w3.org/2000/svg</tt>.</li>
-    <li>Canvas geometry expressed via <em>viewBox</em>.</li>
-    <li>SVG 1.1 Tiny/baseProfile="tiny" RECOMMENDED.</li>
-    <li>Non-drawable metadata (&lt;title&gt;, &lt;desc&gt;, &lt;defs&gt;) SHOULD be preserved if present.</li>
+    <li>The root element MUST be &lt;svg/&gt; in <tt>http://www.w3.org/2000/svg</tt>.</li>
+    <li>The canvas MUST be described by the <tt>viewBox</tt> attribute.</li>
+    <li>The SVG 1.1 Tiny (or a compatible) profile is RECOMMENDED.</li>
+    <li>An initiator MAY use a user-supplied SVG document as the initial document; the same constraints apply to it.</li>
+    <li>Metadata elements (&lt;title/&gt;, &lt;desc/&gt;, &lt;defs/&gt;) MUST NOT be treated as drawable whiteboard items and SHOULD be preserved.</li>
   </ul>
 </section1>
 
-<section1 topic='SVG Conventions and Constraints' anchor='svg-conventions'>
-  <section2 topic='Namespaces' anchor='ns'>
+<section1 topic='Formal Definition' anchor='def'>
+  <section2 topic='The sxe Element' anchor='def-sxe'>
+    <p>
+      All SXE content is contained in an &lt;sxe/&gt; element in the namespace
+      <tt>http://jabber.org/protocol/sxe</tt>. It possesses the following
+      attributes:
+    </p>
+    <table caption='Attributes of the sxe element'>
+      <tr><th>Attribute</th><th>Description</th></tr>
+      <tr><td>xmlns</td><td>REQUIRED. MUST be <tt>http://jabber.org/protocol/sxe</tt>.</td></tr>
+      <tr><td>session</td><td>REQUIRED. The GUID of the whiteboard session.</td></tr>
+      <tr><td>id</td><td>REQUIRED. An identifier unique among the &lt;sxe/&gt; elements sent by that entity to the session.</td></tr>
+      <tr><td>name</td><td>OPTIONAL. A human-readable session name, used only in session advertising.</td></tr>
+    </table>
+    <p>
+      The &lt;sxe/&gt; element contains either exactly one &lt;negotiation/&gt;
+      child (during negotiation) or one or more edit elements (during editing).
+    </p>
+  </section2>
+
+  <section2 topic='Edit Elements' anchor='def-edits'>
+    <p>
+      Three edit elements are defined. Version 0 of a record is implied by its
+      &lt;new/&gt; element; &lt;set/&gt; edits carry an explicit
+      <tt>version</tt>.
+    </p>
+    <table caption='The new element'>
+      <tr><th>Attribute</th><th>Description</th></tr>
+      <tr><td>rid</td><td>REQUIRED. The RID being created.</td></tr>
+      <tr><td>type</td><td>REQUIRED. One of <tt>element</tt>, <tt>attr</tt>, <tt>text</tt>, <tt>comment</tt>, <tt>processinginstruction</tt>.</td></tr>
+      <tr><td>parent</td><td>REQUIRED. The RID of the parent record; empty for the document root.</td></tr>
+      <tr><td>primary-weight</td><td>REQUIRED. The primary weight of the record.</td></tr>
+      <tr><td>name</td><td>REQUIRED for <tt>element</tt> and <tt>attr</tt>. The node name.</td></tr>
+      <tr><td>ns</td><td>OPTIONAL. The namespace URI of an element or attribute.</td></tr>
+      <tr><td>chdata</td><td>REQUIRED for <tt>text</tt>, <tt>attr</tt> and <tt>comment</tt>. The character data.</td></tr>
+      <tr><td>pitarget</td><td>REQUIRED for <tt>processinginstruction</tt>. The processing-instruction target.</td></tr>
+      <tr><td>pidata</td><td>REQUIRED for <tt>processinginstruction</tt>. The processing-instruction data.</td></tr>
+    </table>
+    <table caption='The set element'>
+      <tr><th>Attribute</th><th>Description</th></tr>
+      <tr><td>rid</td><td>REQUIRED. The RID being changed.</td></tr>
+      <tr><td>version</td><td>REQUIRED. The new version of the record (previous version plus one).</td></tr>
+      <tr><td>parent</td><td>OPTIONAL. A new parent RID (reparenting).</td></tr>
+      <tr><td>primary-weight</td><td>OPTIONAL. A new primary weight (reordering).</td></tr>
+      <tr><td>name</td><td>OPTIONAL. A new node name.</td></tr>
+      <tr><td>chdata</td><td>OPTIONAL. New character data.</td></tr>
+      <tr><td>replacefrom</td><td>OPTIONAL, together with <tt>replacen</tt>. Offset of a partial replacement within the current character data.</td></tr>
+      <tr><td>replacen</td><td>OPTIONAL, together with <tt>replacefrom</tt>. Number of characters to replace.</td></tr>
+      <tr><td>pitarget</td><td>OPTIONAL. A new processing-instruction target.</td></tr>
+      <tr><td>pidata</td><td>OPTIONAL. New processing-instruction data.</td></tr>
+    </table>
+    <table caption='The remove element'>
+      <tr><th>Attribute</th><th>Description</th></tr>
+      <tr><td>rid</td><td>REQUIRED. The RID being removed.</td></tr>
+    </table>
+  </section2>
+
+  <section2 topic='Record Fields' anchor='def-records'>
+    <p>A record corresponds to exactly one DOM node and stores the fields below.</p>
+    <table caption='The fields of a record'>
+      <tr><th>Field</th><th>Mutable</th><th>Node types</th><th>Description</th></tr>
+      <tr><td>rid</td><td>no</td><td>all</td><td>The GUID of the record.</td></tr>
+      <tr><td>type</td><td>no</td><td>all</td><td>The DOM node type.</td></tr>
+      <tr><td>version</td><td>indirectly</td><td>all</td><td>The current version of the record.</td></tr>
+      <tr><td>parent</td><td>yes</td><td>all</td><td>The RID of the parent record.</td></tr>
+      <tr><td>primary-weight</td><td>yes</td><td>all</td><td>Ordering of the node among its siblings.</td></tr>
+      <tr><td>ns</td><td>yes</td><td>element, attr</td><td>The namespace URI.</td></tr>
+      <tr><td>name</td><td>yes</td><td>element, attr</td><td>The node name.</td></tr>
+      <tr><td>chdata</td><td>yes</td><td>text, attr, comment</td><td>The character data or attribute value.</td></tr>
+      <tr><td>pitarget</td><td>yes</td><td>processinginstruction</td><td>The processing-instruction target.</td></tr>
+      <tr><td>pidata</td><td>yes</td><td>processinginstruction</td><td>The processing-instruction data.</td></tr>
+    </table>
+  </section2>
+
+  <section2 topic='Mapping Records to the SVG DOM' anchor='def-mapping'>
+    <p>
+      Whenever a record is added, changed or removed, each client MUST ensure that
+      the DOM node corresponding to each record satisfies the following:
+    </p>
+    <ol>
+      <li>The parent of each node MUST be the node of the record named by its <tt>parent</tt> field. If that record does not exist, the node MUST be removed. An empty <tt>parent</tt> means the node is a child of the document itself.</li>
+      <li>Each node MUST be placed after the sibling node with the greatest weight less than its own weight, where weight is ordered first by <tt>primary-weight</tt> and then by the secondary weight (RID comparison).</li>
+      <li>The namespace and name of each element and attribute MUST equal the corresponding record fields.</li>
+      <li>The value of each attribute and the content of each text or comment node MUST equal the record's <tt>chdata</tt>.</li>
+      <li>The target and data of each processing instruction MUST equal <tt>pitarget</tt> and <tt>pidata</tt>.</li>
+      <li>The document MUST remain well-formed and SHOULD remain valid against the schema in <link url='#schema'>Section 9.6</link>.</li>
+    </ol>
+    <p>
+      The following example shows a set of records and the SVG document they map
+      to. It demonstrates ordering by weight (the &lt;circle/&gt; and the
+      &lt;g/&gt; share primary weight 3.4; the RID <tt>GUID9</tt> sorts after
+      <tt>GUID5</tt>) and attribute mapping.
+    </p>
+    <table caption='An example record set'>
+      <tr>
+        <th>rid</th><th>type</th><th>version</th><th>parent</th>
+        <th>primary-weight</th><th>ns</th><th>name</th><th>chdata</th>
+      </tr>
+      <tr><td>GUID0</td><td>element</td><td>0</td><td></td><td>0</td><td>http://www.w3.org/2000/svg</td><td>svg</td><td></td></tr>
+      <tr><td>GUID1</td><td>element</td><td>0</td><td>GUID0</td><td>0</td><td></td><td>path</td><td></td></tr>
+      <tr><td>GUID2</td><td>attr</td><td>0</td><td>GUID1</td><td>0</td><td></td><td>d</td><td>M10 10L20 20L20 10Z</td></tr>
+      <tr><td>GUID9</td><td>element</td><td>0</td><td>GUID0</td><td>3.4</td><td></td><td>g</td><td></td></tr>
+      <tr><td>GUID5</td><td>element</td><td>0</td><td>GUID0</td><td>3.4</td><td></td><td>circle</td><td></td></tr>
+      <tr><td>GUID6</td><td>attr</td><td>3</td><td>GUID5</td><td>0</td><td></td><td>cx</td><td>10</td></tr>
+      <tr><td>GUID7</td><td>attr</td><td>1</td><td>GUID5</td><td>1</td><td></td><td>cy</td><td>20</td></tr>
+      <tr><td>GUID8</td><td>attr</td><td>0</td><td>GUID5</td><td>2</td><td></td><td>r</td><td>5</td></tr>
+    </table>
+    <example caption='Corresponding SVG document'>
+      <![CDATA[
+<svg xmlns='http://www.w3.org/2000/svg'>
+  <path d='M10 10L20 20L20 10Z'/>
+  <circle cx='10' cy='20' r='5'/>
+  <g/>
+</svg>
+]]></example>
+  </section2>
+
+  <section2 topic='Commutative and Non-Commutative Edits' anchor='def-commutative'>
+    <p>
+      Edits that add or remove records are <em>commutative</em>: they can be
+      applied in any order and need not be retained for history. Edits that change
+      an existing record (&lt;set/&gt;) are <em>non-commutative</em>: concurrent
+      changes to the same record may conflict, so a history of such edits is
+      REQUIRED.
+    </p>
     <ul>
-      <li>SVG: <tt>http://www.w3.org/2000/svg</tt> (REQUIRED).</li>
-      <li>XLink (for &lt;image&gt;): <tt>http://www.w3.org/1999/xlink</tt> when <tt>xlink:href</tt> used.</li>
+      <li>Without a server component, every client MUST retain all non-commutative edits that have not been undone and whose records have not been removed.</li>
+      <li>With a server component, the server MUST retain all non-commutative edits and resolve out-of-order edits before relaying them; a client need only retain its own non-commutative edits until it receives a competing edit to the same record from another entity.</li>
     </ul>
   </section2>
-  <section2 topic='Elements' anchor='elements'>
-    <ul>
-      <li><strong>&lt;path&gt;</strong>: path data MAY include M/m,L/l,Q/q,C/c for smooth strokes.</li>
-      <li><strong>&lt;image&gt;</strong>: SHOULD use data URI <tt>data:image/&lt;type&gt;;base64,&lt;data&gt;</tt> with <tt>x</tt>,<tt>y</tt>,<tt>width</tt>,<tt>height</tt>.</li>
-      <li><strong>&lt;g&gt;</strong>: grouping, MAY have <tt>transform</tt>.</li>
-      <li>Other SVG elements MAY appear and SHOULD be preserved if unknown.</li>
-    </ul>
+
+  <section2 topic='XML Schema' anchor='schema'>
+    <p>
+      The shared document MUST conform to the following schema, which restricts
+      the content to the drawing primitives used by whiteboards. Implementations
+      that wish to preserve additional SVG elements MAY extend this schema and
+      MUST then preserve elements they do not understand.
+    </p>
+    <code><![CDATA[
+<?xml version='1.0' encoding='UTF-8'?>
+<xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='http://www.w3.org/2000/svg'
+    xmlns='http://www.w3.org/2000/svg'
+    elementFormDefault='qualified'>
+
+  <xs:element name='svg'>
+    <xs:complexType>
+      <xs:choice minOccurs='0' maxOccurs='unbounded'>
+        <xs:element ref='path'/>
+        <xs:element ref='image'/>
+        <xs:element ref='g'/>
+        <xs:element ref='circle'/>
+        <xs:element ref='ellipse'/>
+        <xs:element ref='rect'/>
+        <xs:element ref='line'/>
+        <xs:element ref='polyline'/>
+        <xs:element ref='polygon'/>
+      </xs:choice>
+      <xs:attribute name='version' type='xs:string'/>
+      <xs:attribute name='baseProfile' type='xs:string'/>
+      <xs:attribute name='viewBox' type='xs:string' use='required'/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name='g'>
+    <xs:complexType>
+      <xs:choice minOccurs='0' maxOccurs='unbounded'>
+        <xs:any namespace='##targetNamespace' processContents='lax'/>
+      </xs:choice>
+      <xs:attributeGroup ref='presentation'/>
+      <xs:attributeGroup ref='transform'/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name='path'>
+    <xs:complexType>
+      <xs:attribute name='d' type='xs:string' use='required'/>
+      <xs:attributeGroup ref='presentation'/>
+      <xs:attributeGroup ref='transform'/>
+      <xs:attributeGroup ref='common'/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name='image'>
+    <xs:complexType>
+      <xs:attribute name='x' type='xs:string' use='required'/>
+      <xs:attribute name='y' type='xs:string' use='required'/>
+      <xs:attribute name='width' type='xs:string' use='required'/>
+      <xs:attribute name='height' type='xs:string' use='required'/>
+      <xs:attribute name='href' type='xs:anyURI' use='required'/>
+      <xs:attributeGroup ref='transform'/>
+      <xs:attributeGroup ref='common'/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name='circle'>
+    <xs:complexType>
+      <xs:attribute name='cx' type='xs:string' use='required'/>
+      <xs:attribute name='cy' type='xs:string' use='required'/>
+      <xs:attribute name='r' type='xs:string' use='required'/>
+      <xs:attributeGroup ref='presentation'/>
+      <xs:attributeGroup ref='transform'/>
+      <xs:attributeGroup ref='common'/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:attributeGroup name='common'>
+    <xs:attribute name='id' type='xs:ID'/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name='transform'>
+    <xs:attribute name='transform' type='xs:string'/>
+  </xs:attributeGroup>
+
+  <xs:attributeGroup name='presentation'>
+    <xs:attribute name='stroke' type='xs:string'/>
+    <xs:attribute name='stroke-width' type='xs:string'/>
+    <xs:attribute name='stroke-linecap' type='xs:string'/>
+    <xs:attribute name='stroke-linejoin' type='xs:string'/>
+    <xs:attribute name='fill' type='xs:string'/>
+    <xs:attribute name='fill-opacity' type='xs:string'/>
+    <xs:attribute name='stroke-opacity' type='xs:string'/>
+    <xs:attribute name='opacity' type='xs:string'/>
+  </xs:attributeGroup>
+
+</xs:schema>
+]]></code>
   </section2>
-  <section2 topic='Element Identity' anchor='ids'>
-    <ul>
-      <li>Every selectable/transformable/reorderable/groupable/deletable whiteboard element MUST have unique <tt>id</tt> attribute.</li>
-      <li><tt>id</tt> MUST be unique within document.</li>
-      <li>If missing, generating implementation MUST assign unique <tt>id</tt> before synchronizing.</li>
-      <li>RECOMMENDED: prefixed UUID (e.g. <tt>e</tt> + UUID).</li>
-      <li>Removed element IDs SHOULD NOT be reused to avoid ambiguity.</li>
-    </ul>
+
+  <section2 topic='DTD' anchor='dtd'>
+    <p>
+      For implementations that prefer a DTD, the following describes the same
+      document type. The <tt>d</tt>, <tt>transform</tt> and presentation
+      attributes are declared as CDATA.
+    </p>
+    <code><![CDATA[
+<!ELEMENT svg (path|image|g|circle|ellipse|rect|line|polyline|polygon)* >
+<!ATTLIST svg
+    xmlns       CDATA #REQUIRED
+    version     CDATA #IMPLIED
+    baseProfile CDATA #IMPLIED
+    viewBox     CDATA #REQUIRED >
+
+<!ELEMENT g (path|image|g|circle|ellipse|rect|line|polyline|polygon)* >
+<!ATTLIST g
+    id          CDATA #IMPLIED
+    transform   CDATA #IMPLIED
+    stroke      CDATA #IMPLIED
+    stroke-width CDATA #IMPLIED
+    fill        CDATA #IMPLIED >
+
+<!ELEMENT path EMPTY >
+<!ATTLIST path
+    id          CDATA #IMPLIED
+    d           CDATA #REQUIRED
+    transform   CDATA #IMPLIED
+    stroke      CDATA #IMPLIED
+    stroke-width CDATA #IMPLIED
+    stroke-linecap CDATA #IMPLIED
+    stroke-linejoin CDATA #IMPLIED
+    fill        CDATA #IMPLIED
+    fill-opacity CDATA #IMPLIED
+    opacity     CDATA #IMPLIED >
+
+<!ELEMENT image EMPTY >
+<!ATTLIST image
+    id          CDATA #IMPLIED
+    x           CDATA #REQUIRED
+    y           CDATA #REQUIRED
+    width       CDATA #REQUIRED
+    height      CDATA #REQUIRED
+    xlink:href  CDATA #REQUIRED
+    transform   CDATA #IMPLIED >
+
+<!ELEMENT circle EMPTY >
+<!ATTLIST circle
+    id          CDATA #IMPLIED
+    cx          CDATA #REQUIRED
+    cy          CDATA #REQUIRED
+    r           CDATA #REQUIRED
+    transform   CDATA #IMPLIED
+    stroke      CDATA #IMPLIED
+    stroke-width CDATA #IMPLIED
+    fill        CDATA #IMPLIED >
+]]></code>
   </section2>
-  <section2 topic='Styling' anchor='style'>
-    <p>Prefer SVG presentation attributes: <tt>stroke</tt>, <tt>stroke-width</tt>, <tt>stroke-linecap</tt>, <tt>stroke-linejoin</tt>, <tt>stroke-miterlimit</tt>, <tt>fill</tt>, <tt>fill-opacity</tt>, <tt>stroke-opacity</tt>, <tt>opacity</tt>.</p>
-  </section2>
-  <section2 topic='Transforms' anchor='transforms'>
-    <ul>
-      <li>Transformations expressed via SVG <tt>transform</tt> attribute (prefer <tt>matrix(...)</tt> for composed edits).</li>
-      <li>Interactive transforms update <tt>transform</tt> (no separate move command).</li>
-      <li>Ungrouping MUST compose group transform into child transforms before removing group.</li>
-    </ul>
-  </section2>
-  <section2 topic='Layering' anchor='zorder'>
-    <p>Z-order determined by DOM document order; later elements render on top. Reordering operations MUST be expressed as DOM node moves.</p>
-  </section2>
-  <section2 topic='Groups' anchor='groups'>
-    <ul>
-      <li>Group creates &lt;g id="..."&gt; (optional transform), inserts at appropriate position, moves selected nodes into group.</li>
-      <li>Ungroup moves children out (preserving stacking), composes group transform into children, removes group.</li>
-    </ul>
+
+  <section2 topic='Grammar of the d Attribute' anchor='grammar-d'>
+    <p>
+      Unlike XEP-0113, this profile permits the full SVG path data grammar, so
+      that freehand strokes can use curve commands. The relevant subset (from the
+      SVG specification) is recalled below.
+    </p>
+    <code><![CDATA[
+path-data:
+    wsp* moveto-drawto-command-groups? wsp*
+
+moveto-drawto-command-groups:
+    moveto-drawto-command-group
+    | moveto-drawto-command-group wsp* moveto-drawto-command-groups
+
+moveto-drawto-command-group:
+    moveto wsp* drawto-commands?
+
+drawto-commands:
+    drawto-command
+    | drawto-command wsp* drawto-commands
+
+drawto-command:
+    closepath | lineto | horizontal-lineto | vertical-lineto
+    | curveto | smooth-curveto | quadratic-bezier-curveto
+    | smooth-quadratic-bezier-curveto | elliptical-arc
+
+moveto:
+    ( "M" | "m" ) wsp* moveto-argument-sequence
+
+closepath:
+    ( "Z" | "z" )
+
+lineto:
+    ( "L" | "l" ) wsp* lineto-argument-sequence
+
+horizontal-lineto:
+    ( "H" | "h" ) wsp* horizontal-lineto-argument-sequence
+
+vertical-lineto:
+    ( "V" | "v" ) wsp* vertical-lineto-argument-sequence
+
+curveto:
+    ( "C" | "c" ) wsp* curveto-argument-sequence
+
+smooth-curveto:
+    ( "S" | "s" ) wsp* smooth-curveto-argument-sequence
+
+quadratic-bezier-curveto:
+    ( "Q" | "q" ) wsp* quadratic-bezier-curveto-argument-sequence
+
+smooth-quadratic-bezier-curveto:
+    ( "T" | "t" ) wsp* smooth-quadratic-bezier-curveto-argument-sequence
+
+elliptical-arc:
+    ( "A" | "a" ) wsp* elliptical-arc-argument-sequence
+
+coordinate-pair:
+    coordinate comma-wsp? coordinate
+
+coordinate:
+    number
+
+number:
+    sign? integer-constant
+    | sign? floating-point-constant
+
+comma-wsp:
+    (wsp+ comma? wsp*) | (comma wsp*)
+
+comma: ","
+sign: "+" | "-"
+wsp: (#x20 | #x9 | #xD | #xA)
+]]></code>
+    <p>
+      The <tt>transform</tt> attribute uses the SVG transform-list grammar; a
+      composed transformation is canonically serialized as a single
+      <tt>matrix(a b c d e f)</tt>.
+    </p>
   </section2>
 </section1>
 
-<section1 topic='Operation Semantics' anchor='ops'>
-  <table caption='Operation → DOM Mutation Mapping'>
-    <tr><th>Operation</th><th>DOM Effect</th></tr>
-    <tr><td>Draw path</td><td>Create &lt;path&gt; with unique id, set d/stroke/stroke-width and optional style attrs, insert at top Z-order.</td></tr>
-    <tr><td>Insert image</td><td>Create &lt;image&gt; with id, x,y,width,height, xlink:href (data URI), ensure xmlns:xlink, insert at top Z-order.</td></tr>
-    <tr><td>Transform (translate/rotate/scale)</td><td>Update transform attribute of affected element(s)/group.</td></tr>
-    <tr><td>Erase/Delete</td><td>Remove target node(s) from DOM.</td></tr>
-    <tr><td>Clear canvas</td><td>Remove all drawable child elements of root &lt;svg&gt; (preserve metadata/defs).</td></tr>
-    <tr><td>Group/Ungroup</td><td>As per Groups/Transforms sections.</td></tr>
-    <tr><td>Reorder</td><td>DOM reordering (move nodes) to achieve bring/send semantics.</td></tr>
-    <tr><td>Style changes</td><td>Update presentation attributes on targets.</td></tr>
-    <tr><td>Resize canvas</td><td>Update root &lt;svg&gt; viewBox.</td></tr>
+<section1 topic='Implementation Notes' anchor='impl'>
+  <section2 topic='The GUI' anchor='impl-gui'>
+    <p>
+      This specification does not mandate a user interface. A typical client
+      offers a set of editing modes (select, translate, rotate, scale, scroll,
+      erase, draw path, insert image), controls for stroke colour, fill colour and
+      stroke width, and actions to save the document, change the canvas geometry
+      and end the session. Selection state is local presentation state and MUST
+      NOT be stored in the shared document.
+    </p>
+  </section2>
+  <section2 topic='Element Identity: RID versus id' anchor='impl-ids'>
+    <p>
+      Two identifiers are involved. The RID identifies an SXE record (a DOM node)
+      and is used by all edit elements. The SVG <tt>id</tt> attribute identifies
+      an element to the application (for example, as the handle used by a
+      rendering library). Both are REQUIRED for drawable elements; the RID is
+      assigned by SXE, the <tt>id</tt> attribute is an ordinary attribute record.
+      An element that lacks an <tt>id</tt> attribute at the moment it becomes part
+      of the shared document SHOULD be given one, and the corresponding
+      &lt;new/&gt; edit for the attribute SHOULD be sent before the element is
+      exposed for individual operations.
+    </p>
+  </section2>
+  <section2 topic='Primary Weight and Stacking Order' anchor='impl-weight'>
+    <p>
+      primary-weight values need only be ordered, not consecutive. Inserting an
+      element between two existing siblings is done by choosing a weight strictly
+      between theirs; repeatedly doing so can exhaust floating-point precision, so
+      implementations MAY periodically renormalize the weights of a sibling set
+      and emit the resulting &lt;set/&gt; edits.
+    </p>
+  </section2>
+  <section2 topic='Bandwidth and Karma' anchor='impl-karma'>
+    <p>
+      Drawing produces data quickly, which stresses servers that apply karma
+      limits. Implementations SHOULD: coalesce high-frequency edits into fewer
+      &lt;sxe/&gt; payloads; avoid recording every pointer movement when the
+      position can be interpolated; and prefer relative path commands where they
+      are shorter. Embedded images are potentially large and SHOULD be subject to
+      local size limits.
+    </p>
+  </section2>
+  <section2 topic='Text' anchor='impl-text'>
+    <p>
+      The profile has no dedicated text element, because &lt;text/&gt; would
+      substantially increase the required rendering subset. Text MAY be represented
+      as paths, for example by converting glyphs from a stroke font (a Hershey
+      font) into <tt>&lt;path/&gt;</tt> elements. This keeps text interoperable
+      with every participant and consistent with the freehand model, at the cost
+      of being non-selectable as text.
+    </p>
+  </section2>
+  <section2 topic='Images' anchor='impl-images'>
+    <p>
+      Embedding image data as a <tt>data:</tt> URI keeps the document
+      self-contained but increases its size by roughly one third (base64). An
+      implementation MAY alternatively reference external resources, but doing so
+      makes the shared document dependent on the availability of those resources
+      for every participant and is therefore NOT RECOMMENDED.
+    </p>
+  </section2>
+  <section2 topic='Clearing the Screen' anchor='impl-clear'>
+    <p>
+      Because there is no clear command, clearing is expressed as a series of
+      &lt;remove/&gt; edits, one per drawable child. Clients that need a
+      finer-grained notion of "clear" (for example, clearing only elements drawn
+      before a certain time) SHOULD implement it locally and MUST NOT introduce
+      non-standard commands into the shared document.
+    </p>
+  </section2>
+</section1>
+
+<section1 topic='Relationship to Other Specifications' anchor='interop'>
+  <p>
+    This profile reuses Shared XML Editing and therefore inherits its consistency
+    and conflict-resolution model. It differs from both related specifications in
+    the following ways.
+  </p>
+  <table caption='Comparison with related specifications'>
+    <tr><th>Aspect</th><th>XEP-0113</th><th>XEP-0284 (SXE)</th><th>This profile</th></tr>
+    <tr><td>Transport</td><td>&lt;message&gt; commands in <tt>…/protocol/swb</tt></td><td>Jingle session + <tt>urn:xmpp:sxe:0</tt></td><td>SXE negotiation in <tt>…/protocol/sxe</tt></td></tr>
+    <tr><td>State model</td><td>Incremental commands</td><td>Shared XML records</td><td>Shared SVG records</td></tr>
+    <tr><td>Application type</td><td>N/A</td><td>Extensible (XHTML, SVG, …)</td><td>SVG (<tt>http://www.w3.org/2000/svg</tt>)</td></tr>
+    <tr><td>Path data</td><td>Only M/m, L/l</td><td>N/A (application-defined)</td><td>Full SVG path data (curves allowed)</td></tr>
+    <tr><td>Transformations</td><td>&lt;move dx dy&gt;</td><td>N/A (application-defined)</td><td>SVG <tt>transform</tt> attribute</td></tr>
+    <tr><td>Z-order</td><td>Document order</td><td>primary-weight</td><td>primary-weight</td></tr>
   </table>
+  <p>
+    A client that implements the Jingle-based XEP-0284 profile instead of the
+    Psi-native negotiation can still exchange the identical edit elements, because
+    the record model is the same. Such a client will interoperate with other
+    XEP-0284 clients but not with Psi's negotiation; it SHOULD advertise
+    <tt>urn:xmpp:sxe:0</tt> rather than <tt>http://jabber.org/protocol/sxe</tt>.
+  </p>
 </section1>
 
 <section1 topic='Security Considerations' anchor='security'>
   <ul>
-    <li>Large embedded images: implementations MAY impose size/format limits.</li>
-    <li>SVG rendering: sandbox RECOMMENDED; avoid fetching external resources (prefer data URIs).</li>
-    <li>Coalescing of high-frequency edits RECOMMENDED to manage bandwidth.</li>
+    <li>Embedded image data can be large; implementations SHOULD enforce size and format limits to avoid resource exhaustion.</li>
+    <li>The shared document is SVG; clients SHOULD render it in a context that does not fetch external resources referenced by the document.</li>
+    <li>Any participant may edit the document; access control and moderation are outside the scope of this specification and may be provided by the host.</li>
+    <li>The XML prolog carried in the <tt>prolog</tt> attribute MUST be treated as untrusted input and parsed defensively.</li>
   </ul>
 </section1>
 
 <section1 topic='IANA Considerations' anchor='iana'>
-  <p>This document requires no interaction with IANA.</p>
+  <p>This document requires no interaction with the Internet Assigned Numbers Authority (IANA).</p>
 </section1>
 
 <section1 topic='XMPP Registrar Considerations' anchor='registrar'>
   <p>
-    The feature URI <tt>http://www.w3.org/2000/svg</tt> is requested for registration
-    as the Protocol Feature for "Collaborative SVG Whiteboarding" per this specification.
+    This specification uses the feature URIs <tt>http://jabber.org/protocol/sxe</tt>
+    (Shared XML Editing, Psi-native negotiation) and
+    <tt>http://www.w3.org/2000/svg</tt> (SVG whiteboard application type). Neither
+    is a new registry entry: the former is the SXE namespace and the latter is the
+    standard SVG namespace. No new namespace is introduced by this document.
+  </p>
+</section1>
+
+<section1 topic='Acknowledgements' anchor='ack'>
+  <p>
+    This document reverse-engineers the whiteboarding and SXE implementations
+    written by Joonas Govenius for the Psi instant messaging client, which are
+    also the basis of XEP-0284. The structure of this document is modeled on
+    XEP-0113.
   </p>
 </section1>
 </xep>
