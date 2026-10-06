@@ -5,28 +5,31 @@
 - [1. Введение](#1-введение)
 - [2. Краткий обзор XEP-0113: Simple Whiteboarding](#2-краткий-обзор-xep-0113-simple-whiteboarding)
 - [3. Архитектура и компоненты реализации в Psi](#3-архитектура-и-компоненты-реализации-в-psi)
-- [4. Сравнение транспорта и протокола синхронизации](#4-сравнение-транспорта-и-протокола-синхронизации)
-- [5. Сравнение формата данных и поддерживаемых элементов](#5-сравнение-формата-данных-и-поддерживаемых-элементов)
-- [6. Сравнение операций и команд](#6-сравнение-операций-и-команд)
-- [7. Модель идентификаторов и управление состоянием](#7-модель-идентификаторов-и-управление-состоянием)
-- [8. Режимы редактирования, UI и функциональность](#8-режимы-редактирования-ui-и-функциональность)
-- [9. Особенности генерации графики и оптимизации](#9-особенности-генерации-графики-и-оптимизаций)
-- [10. Обработка изображений, текста и специальных случаев](#10-обработка-изображений-текста-и-специальных-случаев)
-- [11. Обнаружение поддержки (feature discovery) и интеграция с клиентом](#11-обнаружение-поддержки-feature-discovery-и-интеграция-с-клиентом)
-- [12. Сводная таблица ключевых отличий](#12-сводная-таблица-ключевых-отличий)
-- [13. Выводы и рекомендации для реализации в других клиентах](#13-выводы-и-рекомендации-для-реализации-в-других-клиентах)
-- [14. Список использованных файлов исходного кода](#14-список-использованных-файлов-исходного-кода)
-- [15. Ссылки](#15-ссылки)
+- [4. Протокол SXE (Shared XML Editing) в Psi](#4-протокол-sxe-shared-xml-editing-в-psi)
+- [5. Сравнение транспорта и протокола синхронизации](#5-сравнение-транспорта-и-протокола-синхронизации)
+- [6. Сравнение формата данных и поддерживаемых элементов](#6-сравнение-формата-данных-и-поддерживаемых-элементов)
+- [7. Сравнение операций и команд](#7-сравнение-операций-и-команд)
+- [8. Модель идентификаторов и управление состоянием](#8-модель-идентификаторов-и-управление-состоянием)
+- [9. Режимы редактирования, UI и функциональность](#9-режимы-редактирования-ui-и-функциональность)
+- [10. Особенности генерации графики и оптимизации](#10-особенности-генерации-графики-и-оптимизации)
+- [11. Обработка изображений, текста и специальных случаев](#11-обработка-изображений-текста-и-специальных-случаев)
+- [12. Обнаружение поддержки (feature discovery) и интеграция с клиентом](#12-обнаружение-поддержки-feature-discovery-и-интеграция-с-клиентом)
+- [13. Сводная таблица ключевых отличий](#13-сводная-таблица-ключевых-отличий)
+- [14. Выводы и рекомендации для реализации в других клиентах](#14-выводы-и-рекомендации-для-реализации-в-других-клиентах)
+- [15. Список использованных файлов исходного кода](#15-список-использованных-файлов-исходного-кода)
+- [16. Ссылки](#16-ссылки)
 
 ## 1. Введение
 
-Данный документ представляет собой подробное сравнение реализации модуля whiteboarding в Jabber-клиенте Psi с официальным протоколом XEP-0113: Simple Whiteboarding. 
+Данный документ представляет собой подробное сравнение реализации модуля whiteboarding в Jabber-клиенте Psi с официальным протоколом XEP-0113: Simple Whiteboarding.
 
-Реализация в Psi (расположена в каталоге `whiteboarding/`) существенно отличается от XEP-0113 не только деталями, но и принципиальным подходом к синхронизации коллаборативного редактирования. Если XEP-0113 описывает минималистичный командный протокол поверх XMPP-сообщений, то Psi использует SXE (Simple XML Exchange) для совместного редактирования DOM SVG-документа в реальном времени.
+Реализация в Psi (расположена в каталоге `whiteboarding/`) существенно отличается от XEP-0113 не только деталями, но и принципиальным подходом к синхронизации коллаборативного редактирования. Если XEP-0113 описывает минималистичный командный протокол поверх XMPP-сообщений, то Psi использует **SXE — Shared XML Editing** (XEP-0284) для совместного редактирования DOM SVG-документа в реальном времени.
+
+> Терминологическая заметка: в исходниках Psi и в некоторых старых обсуждениях аббревиатура SXE иногда раскрывалась как «Simple XML Exchange». Правильное и официальное название протокола — **Shared XML Editing** (XEP-0284), автор — Joonas Govenius, он же автор whiteboarding в Psi.
 
 ## 2. Краткий обзор XEP-0113: Simple Whiteboarding
 
-XEP-0113 (v0.2, статус Deferred) определяет предельно простой протокол для обмена рисунками между участниками Jabber-соединения.
+XEP-0113 (v0.2 от 2003-09-07, статус Deferred, тип Informational) определяет предельно простой протокол для обмена рисунками между участниками Jabber-соединения.
 
 **Ключевые положения XEP-0113:**
 - Протокол основан на XMPP `<message>` с расширением `<x xmlns="http://jabber.org/protocol/swb">`
@@ -45,203 +48,312 @@ XEP-0113 (v0.2, статус Deferred) определяет предельно �
 | Класс/Модуль | Файл | Назначение |
 |---|---|---|
 | **WbManager** | [`wbmanager.h`](wbmanager.h), [`wbmanager.cpp`](wbmanager.cpp) | Менеджер диалогов доски. Слушает SXE-сессии, создаёт диалоги при согласовании сессии, обрабатывает приглашения, предоставляет API для открытия доски. |
-| **WbDlg** | [`wbdlg.h`](wbdlg.h), [`wbdlg.cpp`](wbdlg.cpp) | Диалоговое окно сессии доски (AdvancedWidget). Содержит WbWidget, тулбар с режимами, выбором цвета/заливки/толщины, кнопки сохранения/очистки/завершения сессии. |
+| **WbDlg** | [`wbdlg.h`](wbdlg.h), [`wbdlg.cpp`](wbdlg.cpp) | Диалоговое окно сессии доски (`AdvancedWidget`). Содержит `WbWidget`, тулбар с режимами, выбором цвета/заливки/толщины, кнопки сохранения/очистки/завершения сессии. |
 | **WbWidget** | [`wbwidget.h`](wbwidget.h), [`wbwidget.cpp`](wbwidget.cpp) | Основной виджет визуализации и редактирования. Обрабатывает пользовательский ввод (мышь), создаёт временные элементы при рисовании, управляет режимами редактирования, координирует синхронизацию с SXE. |
-| **WbScene** | [`wbscene.h`](wbscene.h), [`wbscene.cpp`](wbscene.cpp) | Наследник QGraphicsScene. Управляет элементами на сцене, реализует группировку/разгруппировку (group/ungroup), управление порядком слоёв (bring/send), регенерацию трансформаций. |
-| **WbItem** | [`wbitem.h`](wbitem.h), [`wbitem.cpp`](wbitem.cpp) | Представляет существующий SVG-элемент на сцене (QGraphicsSvgItem). Обрабатывает трансформации (translate/rotate/scale), контекстное меню, синхронизирует изменения обратно в DOM через SXE. |
-| **WbNewItem** | [`wbnewitem.h`](wbnewitem.h), [`wbnewitem.cpp`](wbnewitem.cpp) | Базовый абстрактный класс для временных элементов, создаваемых в процессе рисования (до фиксации в документ). |
-| **WbNewPath** | [`wbnewpath.h`](wbnewpath.h), [`wbnewpath.cpp`](wbnewpath.cpp) | Временный элемент для свободного рисования (path). Генерирует сглаженные кривые (quadTo), сериализуется в SVG `<path>`. |
+| **WbScene** | [`wbscene.h`](wbscene.h), [`wbscene.cpp`](wbscene.cpp) | Наследник `QGraphicsScene`. Управляет элементами на сцене, реализует группировку/разгруппировку, управление порядком слоёв, регенерацию трансформаций. |
+| **WbItem** | [`wbitem.h`](wbitem.h), [`wbitem.cpp`](wbitem.cpp) | Представляет существующий SVG-элемент на сцене (`QGraphicsSvgItem`). Обрабатывает трансформации, контекстное меню, синхронизирует изменения обратно в DOM через SXE. |
+| **WbNewItem** | [`wbnewitem.h`](wbnewitem.h), [`wbnewitem.cpp`](wbnewitem.cpp) | Базовый класс для временных элементов, создаваемых в процессе рисования (до фиксации в документ). |
+| **WbNewPath** | [`wbnewpath.h`](wbnewpath.h), [`wbnewpath.cpp`](wbnewpath.cpp) | Временный элемент для свободного рисования (path). Генерирует сглаженные кривые (`QPainterPath::quadTo`), сериализуется в SVG `<path>`. |
 | **WbNewImage** | [`wbnewimage.h`](wbnewimage.h), [`wbnewimage.cpp`](wbnewimage.cpp) | Временный элемент для вставки изображения. Кодирует изображение в data URI (base64) при сериализации. |
 
-**Ключевая инфраструктура:** Использует [`SxeSession`](../sxe/sxesession.h) и [`SxeManager`](../sxe/sxemanager.h) (SXE - Simple XML Exchange) для коллаборативного редактирования XML/DOM документа. Корневым документом является SVG.
+**Ключевая инфраструктура:** используются `SxeSession` и `SxeManager` из отдельного модуля `src/sxe` в дереве исходников Psi (в данной рабочей копии присутствует только модуль `whiteboarding/`; заголовки подключаются как `../sxe/...`). SXE реализует коллаборативное редактирование XML/DOM, а корневым документом является SVG.
 
-**Пустой документ (EMPTYWB):**
+**Пустой документ (`EMPTYWB`, объявлен в `wbmanager.cpp`):**
 ```xml
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <svg xmlns="http://www.w3.org/2000/svg" version="1.2" viewBox="0 0 600 400" baseProfile="tiny" />
 ```
 
-## 4. Сравнение транспорта и протокола синхронизации
+## 4. Протокол SXE (Shared XML Editing) в Psi
+
+Этот раздел описывает, как именно устроена синхронизация на уровне XMPP-станз. Понимание этой модели необходимо для корректного сравнения с XEP-0113 и для реализации совместимого клиента.
+
+### 4.1 Обзор и namespace
+
+- **Название:** Shared XML Editing (SXE), стандартизован как XEP-0284. Протокол позволяет нескольким участникам совместно редактировать произвольный XML-документ (в нашем случае — SVG).
+- **Протокольный namespace:** `http://jabber.org/protocol/sxe` (в Psi задан макросом `SXENS` в `sxesession.h`).
+- **Application feature:** `http://www.w3.org/2000/svg` (макрос `WBNS` в `wbmanager.h`) — обозначает тип редактируемого документа (SVG), а не протокол.
+- **Проверка поддержки:** `SxeManager::checkSupport()` требует наличия **обоих** feature: `SXENS` **и** запрошенных application features (то есть `WBNS`).
+- **Host:** SXE не требует центрального сервера. В сессии «один-на-один» host’ом выступает инициатор; в MUC host’ом служит сама комната.
+
+### 4.2 Оболочка `<sxe>`
+
+Каждое изменение и каждый переговорный шаг передаются в отдельной станзе `<message>`:
+
+```xml
+<message from='kingclaudius@shakespeare.lit/castle'
+         to='laertes@shakespeare.lit/castle'>
+  <sxe xmlns='http://jabber.org/protocol/sxe'
+       session='851ba2' id='4'>
+    ...
+  </sxe>
+</message>
+```
+
+- `session` — GUID сессии (общий для всех участников).
+- `id` — уникальный идентификатор данной станзы-носителя.
+- Внутри `<sxe>` находится либо один `<negotiation>` (переговоры), либо один или несколько редактирующих элементов.
+
+### 4.3 Переговоры сессии
+
+Переговоры ведутся дочерними элементами `<negotiation>`:
+
+| Элемент | Смысл |
+|---|---|
+| `<invitation><feature>URI</feature>…</invitation>` | Приглашение начать сессию с перечнем требуемых application features |
+| `<accept-invitation/>` | Приглашённый принимает приглашение |
+| `<decline-invitation><alternative-session>GUID</alternative-session></decline-invitation>` | Отказ; может предлагать существующую сессию |
+| `<abort-negotiation/>` | Прерывание незавершённых переговоров |
+| `<connect-request/>` | Присоединение к уже существующей сессии |
+| `<history-offer/>` | Предложение передать текущее состояние документа |
+| `<accept-history/>` | Джойнер принимает предложение состояния |
+| `<document-begin prolog='data:…' available-uuid-prefix='…'/>` | Начало передачи состояния; `prolog` содержит XML-пролог (включая DOCTYPE) как `data:`-URI |
+| *(редактирующие элементы)* | Снимок документа в виде последовательности `<new>`/`<set>` |
+| `<document-end used-sxe-ids='…'/>` | Конец передачи состояния |
+| `<left-session/>` | Уведомление об уходе из сессии |
+
+Логика согласования реализована в `SxeManager::processNegotiationMessage()`, `SxeManager::processNegotiationAsParticipant()` и `SxeManager::processNegotiationAsJoiner()`; инициация — в `SxeManager::startNewSession()`, присоединение — в `SxeManager::joinSession()`.
+
+### 4.4 Записи (records) и редактирующие элементы
+
+SXE не передаёт «команды» над SVG напрямую. Он поддерживает набор **записей**, каждая из которых соответствует одному DOM-узлу, и синхронизирует их поля:
+
+| Поле | Смысл |
+|---|---|
+| `rid` | Record ID — GUID записи (отличается от SVG-атрибута `id`) |
+| `type` | Тип узла: `element`, `attr`, `text`, `comment`, `processinginstruction` |
+| `version` | Версия записи (0 у созданной) |
+| `parent` | `rid` родительской записи |
+| `primary-weight` | Вес для упорядочивания сиблингов (больше — выше/позже) |
+| `ns` | namespace элемента/атрибута |
+| `name` | имя элемента/атрибута |
+| `chdata` | символьные данные (текст, значение атрибута, комментарий) |
+| `pitarget`, `pidata` | target/data для processing instruction |
+
+Изменения выражаются тремя элементами (файлы `sxenewedit.cpp`, `sxerecordedit.cpp`, `sxeremoveedit.cpp`):
+
+- `<new rid type parent primary-weight [name] [ns] [chdata] [pitarget] [pidata]/>` — создание записи;
+- `<set rid version [parent] [primary-weight] [name] [chdata] [replacefrom] [replacen] [pitarget] [pidata]/>` — изменение записи;
+- `<remove rid/>` — удаление записи.
+
+Порядок узлов среди сиблингов определяется primary-weight, а при равенстве — **secondary weight** (лексикографическое сравнение `rid`), см. `SxeRecord::operator<()` и `SxeRecord::hasSmallerSecondaryWeight()`.
+
+### 4.5 Пример: рисование пути
+
+Создание красного треугольника на доске — это одна станза SXE с несколькими `<new>`:
+
+```xml
+<message from='kingclaudius@shakespeare.lit/castle'
+         to='laertes@shakespeare.lit/castle'>
+  <sxe xmlns='http://jabber.org/protocol/sxe' session='851ba2' id='8'>
+    <new rid='8'  type='element' name='path' parent='0' primary-weight='1'/>
+    <new rid='9'  type='attr' name='id'           chdata='e1f2a3b4' parent='8' primary-weight='0'/>
+    <new rid='10' type='attr' name='d'            chdata='M 100 100 L 300 100 L 200 300 Z' parent='8' primary-weight='0'/>
+    <new rid='11' type='attr' name='stroke'       chdata='#ff0000' parent='8' primary-weight='0'/>
+    <new rid='12' type='attr' name='stroke-width' chdata='2'       parent='8' primary-weight='0'/>
+  </sxe>
+</message>
+```
+
+Обратите внимание: «insertNode/setAttribute/removeNode» из `SxeSession` — это клиентский API, а по сети уходят именно `<new>`/`<set>`/`<remove>` с `rid`/`version`/`primary-weight`.
+
+### 4.6 Отношение к XEP-0284
+
+Psi использует **раннюю (ProtoXEP) редакцию** SXE: сессия согласуется кастомными элементами `<negotiation>` внутри `<message>`, а namespace — `http://jabber.org/protocol/sxe`. Позднее XEP-0284 стандартизовал управление сессией через **Jingle (XEP-0166)** с namespace’ами `urn:xmpp:sxe:0` и `urn:xmpp:jingle:transports:sxe`. При этом **модель записей и редактирующих элементов осталась той же**, поэтому клиент на XEP-0284 может обмениваться теми же `<new>`/`<set>`/`<remove>`, но не совместим с переговорами Psi на уровне станз.
+
+### 4.7 Формализованное описание профиля
+
+SVG-профиль поверх SXE (feature `http://www.w3.org/2000/svg`, конвенции документа, семантика операций, XSD/DTD) формализован в этом же репозитории:
+
+- [`xep-collaborative-svg-whiteboarding.xml`](xep-collaborative-svg-whiteboarding.xml) — черновик в стиле XEP;
+- [`xep-collaborative-svg-whiteboarding.html`](xep-collaborative-svg-whiteboarding.html) — отрендеренная версия;
+- [`tools/xep2html.py`](tools/xep2html.py) — конвертер XML → HTML.
+
+## 5. Сравнение транспорта и протокола синхронизации
 
 | Параметр | XEP-0113 | Реализация Psi | Комментарии |
 |---|---|---|---|
-| **Тип протокола** | Командный, message-based. Расширение `<x xmlns="http://jabber.org/protocol/swb">` внутри `<message>`. | DOM-synchronization, session-based. Основан на **SXE** (Simple XML Exchange). Изменения передаются как операции над DOM SVG-документа. | Ключевое принципиальное отличие. XEP-0113 — stateless обмен командами, Psi — stateful совместное редактирование документа. |
-| **Транспортные пакеты** | Только `<message>` (chat, groupchat). Поддерживает thread для сессии чата. | SXE-сессия, управляемая `SxeManager`/`SxeSession`. Обмен происходит через механизмы SXE (не ограничивается только message-форматом XEP-0113). | Разные уровни протокола. Psi абстрагирует транспорт через SXE. |
-| **Модель синхронизации** | Event/command model: отправка команды при действии (path/move/delete). Нет явной синхронизации всего состояния, только дельты. | Document synchronization: ведётся общий SVG DOM-документ, синхронизируемый между участниками. Любое изменение узла/атрибута отражается в DOM. | Psi хранит полное состояние доски как SVG DOM на всех клиентах. |
-| **Управление сессией** | Не специфицировано в XEP. Использует стандартные механики XMPP (thread в chat, room в MUC). | Явное согласование сессии через `SxeManager`. Приглашения обрабатываются через сигнал `invitationCallback` с проверкой features ([`wbmanager.cpp:175-211`](wbmanager.cpp#L175-L211), [`wbmanager.cpp:252-285`](wbmanager.cpp#L252-L285)). | Psi требует negotiated SXE-сессии. |
-| **Namespace протокола** | `http://jabber.org/protocol/swb` | Использует SVG namespace `http://www.w3.org/2000/svg` (WBNS = `"http://www.w3.org/2000/svg"`). Изменения — DOM-операции, а не элементы SWB. | Psi **не использует** namespace XEP-0113. Он использует SVG как формат данных и SXE как протокол синхронизации. |
-| **Инициация сессии** | Может быть одиночным сообщением или началом чата (thread). | `WbManager::openWhiteboard()` ([`wbmanager.cpp:175-249`](wbmanager.cpp#L175-L249)): проверяет поддержку (Disco/SXE features), при отсутствии диалога — предлагает открыть существующий SVG-файл или создаёт пустой EMPTYWB, затем начинает SXE-сессию через `sxemanager_->startNewSession()`. | Более сложная инициация с возможностью загрузки начального документа. |
-| **Завершение сессии** | Не специфицировано. | `WbDlg::endSession()` ([`wbdlg.cpp:350-370`](wbdlg.cpp#L350-L370)) завершает SXE-сессию (`session()->endSession()`) и уведомляет менеджер. | Явное управление жизненным циклом сессии. |
-| **Feature discovery** | Рекомендуется использовать Service Discovery (XEP-0030), но не детализирован. | Проверка через `sxemanager_->checkSupport(target, features)` с features, содержащим `WBNS` ([`wbmanager.cpp:186-196`](wbmanager.cpp#L186-L196)). Приглашения фильтруются по наличию `WBNS` в features ([`wbmanager.cpp:266-285`](wbmanager.cpp#L266-L285)). | Использует проверку поддержки SVG-whiteboarding через SXE. |
+| **Тип протокола** | Командный, message-based. Расширение `<x xmlns="http://jabber.org/protocol/swb">` внутри `<message>`. | DOM-синхронизация, session-based, поверх SXE. Редактирующие элементы `<new>`/`<set>`/`<remove>` над общим SVG DOM. | Ключевое принципиальное отличие. XEP-0113 — stateless обмен командами, Psi — stateful совместное редактирование документа. |
+| **Транспортные пакеты** | Только `<message>` (chat, groupchat). Поддерживает thread для сессии чата. | Тоже `<message>`, но с полезной нагрузкой `<sxe xmlns="http://jabber.org/protocol/sxe">`; переговоры — через `<negotiation>`. | Оба варианта используют `<message>`, но семантика принципиально разная: команда против элемента сессии. |
+| **Протокольный namespace** | `http://jabber.org/protocol/swb` | `http://jabber.org/protocol/sxe` (`SXENS`) | Разные протоколы. |
+| **Application feature** | Нет (тип задан namespace’ом SWB) | `http://www.w3.org/2000/svg` (`WBNS`) — тип документа | SVG здесь — формат данных, а не протокол. |
+| **Модель синхронизации** | Event/command model: отправка команды при действии (path/move/delete). Только дельты. | Records/edits: ведётся общий SVG DOM, синхронизируются записи узлов (создание/изменение/удаление). | Psi хранит полное состояние доски как SVG DOM на всех клиентах. |
+| **Управление сессией** | Не специфицировано в XEP. Использует стандартные механики XMPP (thread в chat, room в MUC). | Явное согласование через `SxeManager` элементами `<negotiation>`; приглашения — сигнал `invitationCallback`, который `WbManager::checkInvitation()` превращает в запрос пользователю. | Psi требует negotiated SXE-сессии. |
+| **Инициация сессии** | Может быть одиночным сообщением или началом чата (thread). | `WbManager::openWhiteboard()`: проверяет поддержку, при отсутствии диалога предлагает открыть существующий SVG или создаёт `EMPTYWB`, затем вызывает `SxeManager::startNewSession()`. | Более сложная инициация с возможностью загрузки начального документа. |
+| **Завершение сессии** | Не специфицировано. | `WbDlg::endSession()` вызывает `SxeSession::endSession()`; уход участника передаётся элементом `<left-session/>` и сигналом `peerLeftSession()`. | Явное управление жизненным циклом сессии. |
+| **Feature discovery** | Рекомендуется Service Discovery (XEP-0030), но не детализирован. | `SxeManager::checkSupport()` проверяет `SXENS` **и** `WBNS`; приглашения фильтруются `WbManager::checkInvitation()` по наличию `WBNS`. | Нужны оба feature. |
 
-## 5. Сравнение формата данных и поддерживаемых элементов
+## 6. Сравнение формата данных и поддерживаемых элементов
 
 | Элемент/Атрибут | XEP-0113 | Реализация Psi | Комментарии |
 |---|---|---|---|
 | **Корневой элемент** | `<x xmlns="http://jabber.org/protocol/swb">` | `<svg xmlns="http://www.w3.org/2000/svg" version="1.2" viewBox="..." baseProfile="tiny">` | Psi работает непосредственно с SVG DOM, а не с обёрткой SWB. |
-| **Поддерживаемые графические элементы** | Только `<path>` | Любые SVG-элементы, присутствующие в DOM: `<path>`, `<image>`, `<g>` (группы), а также любые другие, которые могут быть добавлены. | Гораздо шире. Psi — это в сущности коллаборативное редактирование SVG. |
-| **Path - команды** | Только `M`, `m`, `L`, `l` (moveto, lineto). Никаких кривых, arcs, etc. | Генерирует SVG path через QPainterPath. При свободном рисовании (DrawPath) используется `quadTo` ([`wbnewpath.cpp:69-96`](wbnewpath.cpp#L69-L96)), что даёт **квадратичные кривые Безье** (Q команды в SVG path). | Существенное отличие в качестве сглаживания линий. Psi создаёт более плавные кривые, XEP-0113 — только ломаные. |
-| **Path - формат d** | Строго ограничен грамматикой (только M/m,L/l). Описан BNF в XEP-0113. | Стандартный SVG path (может включать `Q`, `C`, `M`, `L` и др. в зависимости от генерации). Psi генерирует пути, совместимые с SVG. | Psi не ограничивается подмножеством XEP-0113. |
-| **Атрибуты стиля path** | `stroke`, `stroke-width`, `id` (+ опциональные). По умолчания: stroke=#000000, stroke-width=1 | `stroke`, `stroke-width`, `stroke-linecap`, `fill`, `fill-opacity`, `transform`, `id`, `xmlns:xlink` (для image) и др. | Расширенный набор SVG-атрибутов. |
-| **Преобразования (transforms)** | Отсутствуют. Перемещение — отдельная команда `<move>`. | Полноценные **SVG transforms** (матрицы). Поддерживаются translate, rotate, scale (реализованы через матричные преобразования). См. [`WbItem::parseSvgTransform()`](wbitem.cpp#L217-L233), [`WbItem::toSvgTransform()`](wbitem.cpp#L235-L246), [`wbitem.cpp:248-294`](wbitem.cpp#L248-L294). | Кардинальное отличие в модели трансформаций. |
-| **ViewBox/геометрия** | Не специфицирована. | Управляется атрибутом `viewBox` корневого `<svg>`. Может меняться через `setGeometry()` ([`wbdlg.cpp:372-404`](wbdlg.cpp#L372-L404)), обрабатывается в [`wbwidget.cpp:196-212`](wbwidget.cpp#L196-L212), [`wbwidget.cpp:302-318`](wbwidget.cpp#L302-L318). | Холст имеет явные размеры/viewport. |
-| **Изображения** | Не поддерживаются | Поддерживаются (`DrawImage` mode). При сериализации изображение кодируется как **data URI base64**: `data:image/<ext>;base64,<data>` ([`wbnewimage.cpp:45-93`](wbnewimage.cpp#L45-L93)). | Существенное расширение функциональности. |
-| **Группы** | Не поддерживаются | Поддерживаются элементы `<g>` с операциями group/ungroup ([`wbscene.cpp:121-189`](wbscene.cpp#L121-L189)). Группы могут иметь собственные трансформации. | Расширенная функциональность редактирования. |
+| **Поддерживаемые графические элементы** | Только `<path>` | Любые SVG-элементы, присутствующие в DOM: `<path>`, `<image>`, `<g>` и др. | Гораздо шире. Psi — это по сути коллаборативное редактирование SVG. |
+| **Path - команды** | Только `M`, `m`, `L`, `l`. Никаких кривых, дуг и т. п. | Генерирует SVG path через `QPainterPath`. При свободном рисовании (`WbNewPath::parseCursorMove()`) используется `quadTo`, что даёт **квадратичные кривые Безье** (`Q`). | Существенное отличие в качестве сглаживания. |
+| **Path - формат d** | Строго ограничен грамматикой (только M/m, L/l), описан BNF в XEP-0113. | Полноценный SVG path (может включать `Q`, `C`, `M`, `L` и др.). | Psi не ограничивается подмножеством XEP-0113. |
+| **Атрибуты стиля path** | `stroke`, `stroke-width`, `id` (опц.). По умолчанию stroke=#000000, stroke-width=1 | `stroke`, `stroke-width`, `stroke-linecap`, `fill`, `fill-opacity`, `transform`, `id`, `xmlns:xlink` (для image) и др. | Расширенный набор SVG-атрибутов. |
+| **Преобразования (transforms)** | Отсутствуют. Перемещение — команда `<move>`. | Полноценные SVG transforms (матрицы). Реализованы в `WbItem::mouseMoveEvent()`, сериализованы в атрибут через `WbItem::regenerateTransform()`, `WbItem::parseSvgTransform()`, `WbItem::toSvgTransform()`. | Кардинальное отличие в модели трансформаций. |
+| **ViewBox/геометрия** | Не специфицирована. | Атрибут `viewBox` корневого `<svg>`; меняется через `WbDlg::setGeometry()` и учитывается в `WbWidget::checkForViewBoxChange()`. | Холст имеет явные размеры/viewport. |
+| **Изображения** | Не поддерживаются. | Поддерживаются (`Mode::DrawImage`). Сериализация — `WbNewImage::serializeToSvg()`, изображение кодируется как data URI base64. | Существенное расширение функциональности. |
+| **Группы** | Не поддерживаются. | Элементы `<g>` с операциями `WbScene::group()` и `WbScene::ungroup()`; группы могут иметь собственные трансформации. | Расширенная функциональность редактирования. |
 
-## 6. Сравнение операций и команд
+## 7. Сравнение операций и команд
 
-| Операция | XEP-0113 | Реализация Psi | Детали реализации (ссылки) |
+| Операция | XEP-0113 | Реализация Psi | Детали реализации (символы) |
 |---|---|---|---|
-| **Добавление элемента** | `<path d="..." stroke="..." stroke-width="..." id="..."/>` | Создание SVG-элемента (path/image/g) и вставка в DOM через SXE. | При рисовании: WbNewPath/WbNewImage сериализуются ([`wbnewpath.cpp:98-159`](wbnewpath.cpp#L98-L159), [`wbnewitem.cpp:46-92`](wbnewitem.cpp#L46-L92)), добавляются в документ через SXE-операции. Новым элементам присваивается уникальный `id`. |
-| **Перемещение** | `<move id="X" dx="n" dy="n"/>` (относительное) | Через **SVG transform matrix**. Не отдельная команда, а изменение атрибута `transform`. | [`WbItem::mouseMoveEvent()`](wbitem.cpp#L131-215) применяет QGraphicsItem transform, затем [`WbItem::regenerateTransform()`](wbitem.cpp#L248-294) конвертирует в SVG matrix и вызывает `session_->setAttribute(node_, "transform", newValue)`. |
-| **Удаление** | `<delete id="X"/>` | `session_->removeNode(node)` (SXE DOM removal). | [`WbItem::~WbItem()`](wbitem.cpp#L115-119) (частично), обработка удаления через сигналы SXE: [`wbwidget.cpp:156-172`](wbwidget.cpp#L156-L172) (`nodeToBeRemoved` → `removeWbItem`, `checkForRemovalOfId`). |
-| **Изменение атрибутов** | Не предусмотрено. Требуется удалить и создать новый элемент. | Любое изменение через `session_->setAttribute(node, attr, value)`. | См. примеры: [`wbwidget.cpp:312-318`](wbwidget.cpp#L312-L318) (viewBox), [`wbitem.cpp:287-294`](wbitem.cpp#L287-294) (transform). |
-| **Группировка** | Отсутствует | `WbScene::group()` — создаёт `<g>`, перемещает выделенные узлы внутрь группы, сбрасывает выделение. | [`wbscene.cpp:121-159`](wbscene.cpp#L121-L159) |
-| **Разгруппировка** | Отсутствует | `WbScene::ungroup()` — извлекает детей из `<g>`, комбинирует трансформации группы с дочерними, удаляет группу. | [`wbscene.cpp:161-189`](wbscene.cpp#L161-L189) |
-| **Изменение Z-order (слои)** | Отсутствует | `bringForward(n)`, `bringToFront()`, `sendBackwards(n)`, `sendToBack()` — перестановка DOM-узлов относительно других элементов (по z-order). | [`wbscene.cpp:191-271`](wbscene.cpp#L191-L271). Реализовано через сравнение zValue и вставку узлов до/после (`insertNodeBefore/After`). |
-| **Очистка доски** | Не определена. Предлагается удалять все пути по ID. | `WbWidget::clear()` — удаляет все WbItem-узлы из корневого `<svg>`. | [`wbwidget.cpp:320-332`](wbwidget.cpp#L320-L332) |
-| **Обновление документа (remote/local)** | Обработка входящих `<message>` с SWB-расширением. | Обработка SXE-событий: `documentUpdated`, `nodeAdded`, `nodeMoved`, `nodeToBeRemoved`, `chdataChanged`. | [`wbwidget.cpp:135-173`](wbwidget.cpp#L135-L173) — подписки на SXE-сигналы, реагирование на удалённые изменения. |
+| **Добавление элемента** | `<path d="..." stroke="..." stroke-width="..." id="..."/>` | SXE-элементы `<new>` (элемент + атрибуты) добавляются в общий DOM. | `WbNewPath::serializeToSvg()`, `WbNewImage::serializeToSvg()`, `WbNewItem::serializeToSvg()`, `SxeSession::insertNodeAfter()`. Новым элементам присваивается уникальный `id`. |
+| **Перемещение** | `<move id="X" dx="n" dy="n"/>` (относительное) | Через SVG transform matrix. Не отдельная команда, а изменение атрибута `transform`. | `WbItem::mouseMoveEvent()` применяет QGraphicsItem-трансформацию, `WbItem::regenerateTransform()` конвертирует её в SVG matrix и вызывает `SxeSession::setAttribute(node, "transform", …)`. |
+| **Удаление** | `<delete id="X"/>` | `SxeSession::removeNode()`. | Удаление инициирует `WbWidget::clear()` либо пользовательский ввод; визуальные элементы удаляются по сигналу `nodeToBeRemoved` через `WbWidget::removeWbItem()` и `WbWidget::checkForRemovalOfId()`. |
+| **Изменение атрибутов** | Не предусмотрено. Требуется удалить и создать новый элемент. | Любое изменение через `SxeSession::setAttribute()` / `SxeSession::setNodeValue()`. | Примеры: `WbWidget::setSize()` (viewBox), `WbItem::regenerateTransform()` (transform). |
+| **Группировка** | Отсутствует. | `WbScene::group()` — создаёт `<g>`, перемещает выделенные узлы внутрь группы, сбрасывает выделение. | `wbscene.cpp` |
+| **Разгруппировка** | Отсутствует. | `WbScene::ungroup()` — извлекает детей из `<g>`, комбинирует трансформации группы с дочерними, удаляет группу. | `wbscene.cpp` |
+| **Изменение Z-order (слои)** | Отсутствует. | `WbScene::bringForward()`, `WbScene::bringToFront()`, `WbScene::sendBackwards()`, `WbScene::sendToBack()` (общая логика — `WbScene::bring()`). | Перестановка DOM-узлов через `SxeSession::insertNodeBefore()`/`insertNodeAfter()`. |
+| **Очистка доски** | Не определена. Предлагается удалять все пути по ID. | `WbWidget::clear()` — удаляет все `WbItem`-узлы из корневого `<svg>`. | `wbwidget.cpp` |
+| **Обновление документа (remote/local)** | Обработка входящих `<message>` с SWB-расширением. | Обработка SXE-сигналов: `documentUpdated`, `nodeAdded`, `nodeMoved`, `nodeToBeRemoved`, `chdataChanged`. | Подписки в конструкторе `WbWidget`; обработчики `WbWidget::handleDocumentUpdated()`, `WbWidget::queueNodeInspection()`, `WbWidget::inspectNodes()`. |
 
-## 7. Модель идентификаторов и управление состоянием
+## 8. Модель идентификаторов и управление состоянием
 
 | Аспект | XEP-0113 | Реализация Psi | Примечания |
 |---|---|---|---|
-| **Требовательность к ID** | Атрибут `id` опционален для `<path>`. Если `id` отсутствует, путь нельзя переместить/удалить командами `<move>`/`<delete>`. | Обязателен для всех управляемых элементов. Система активно гарантирует наличие ID. | [`WbItem::addToScene()`](wbitem.cpp#L296-335): если у узла нет `id` — генерирует `id = "e" + SxeSession::generateUUID()` и вызывает `session_->setAttribute(node_, "id", id)`. |
-| **Генерация ID** | На усмотрение клиента. XEP не предписывает формат. | UUID-подобный с префиксом `e`: `"e" + SxeSession::generateUUID()`. | См. [`wbitem.cpp:321-330`](wbitem.cpp#L321-L330), [`wbnewpath.cpp:149-159`](wbnewpath.cpp#L149-L159), [`wbnewimage.cpp:74-79`](wbnewimage.cpp#L74-L79), [`wbscene.cpp:132`](wbscene.cpp#L132). |
-| **Управление ID-less элементами** | Не рассматривается. | Есть механизмы: `idlessItems_`, слоты `addToIdLess()`, `addIds()`, `checkForRemovalOfId()`. | [`wbwidget.h:147-158`](wbwidget.h#L147-L158), [`wbwidget.cpp:435-490`](wbwidget.cpp#L435-L490). Система следит за элементами без ID и пытается добавить их при обновлении документа. |
-| **Отслеживание изменений** | Командная модель (дельты). Состояние может быть восстановлено применением всех команд, но XEP не описывает полную синхронизацию состояния. | Полноценная синхронизация DOM. `recentlyRelocatedNodes_`, `queueNodeInspection()`, `inspectNodes()` обеспечивают синхронизацию визуальных элементов с DOM-узлами. | [`wbwidget.cpp:393-433`](wbwidget.cpp#L393-L433), [`wbwidget.h:142-146`](wbwidget.h#L142-L146). |
-| **Консистентность состояния** | Легко может нарушиться при потере сообщений (XMPP best-effort). Требует аккуратной обработки. | SXE обеспечивает синхронизацию XML DOM между участниками сессии (collaborative editing). Более надёжная модель консистентности документа. | Архитектурное преимущество SXE-подхода. |
+| **Требовательность к ID** | Атрибут `id` опционален для `<path>`. Без `id` путь нельзя переместить/удалить командами `<move>`/`<delete>`. | Атрибут `id` активно гарантируется для управляемых элементов. | `WbItem::addToScene()`: если у узла нет `id` — генерирует `id = "e" + SxeSession::generateUUID()` и вызывает `SxeSession::setAttribute(node, "id", id)`. |
+| **RID vs `id`** | Есть только `id`, задаваемый клиентом. | Два разных идентификатора: SXE `rid` (идентифицирует запись/узел для протокола) и SVG-атрибут `id` (идентификатор для приложения). | Существенное отличие модели. См. раздел 4.4. |
+| **Генерация ID** | На усмотрение клиента. Формат не предписан. | UUID-подобный с префиксом `e`. | `SxeSession::generateUUID()`, `WbNewPath::serializeToSvg()`, `WbNewImage::serializeToSvg()`, `WbScene::group()`. |
+| **Управление ID-less элементами** | Не рассматривается. | Есть механизмы: `idlessItems_`, слоты `WbWidget::addIds()`, `WbWidget::addToIdLess()`, `WbWidget::checkForRemovalOfId()`. | Система следит за элементами без `id` и пытается добавить его при обновлении документа. |
+| **Отслеживание изменений** | Командная модель (дельты). Полная синхронизация состояния не описана. | Полноценная синхронизация DOM: `recentlyRelocatedNodes_`, `WbWidget::queueNodeInspection()`, `WbWidget::inspectNodes()`. | Обеспечивают соответствие визуальных элементов DOM-узлам. |
+| **Консистентность состояния** | Легко нарушается при потере сообщений (XMPP best-effort). | SXE синхронизирует записи DOM между участниками (collaborative editing) с учётом версий. | Архитектурное преимущество SXE-подхода. |
 
-## 8. Режимы редактирования, UI и функциональность
+## 9. Режимы редактирования, UI и функциональность
 
 XEP-0113 не определяет пользовательский интерфейс — только протокол обмена. Psi предоставляет богатый UI с множеством режимов редактирования.
 
 | Возможность | XEP-0113 | Реализация Psi | Детали |
 |---|---|---|---|
-| **Режимы редактирования** | Только создание пути (freehand drawing). Другие операции — команды move/delete. | Enum `WbWidget::Mode` ([`wbwidget.h:65-90`](wbwidget.h#L65-L90)): `Select`, `Translate`, `Rotate`, `Scale`, `Scroll`, `Erase`, `DrawPath`, `DrawLine`, `DrawRectangle`, `DrawEllipse`, `DrawCircle`, `DrawPolyline`, `DrawText`, `DrawImage`. | Многообразие интерактивных режимов. Многие (Line/Rect/Ellipse/Circle/Polyline/Text) в коде частично реализованы или закомментированы в UI ([`wbdlg.cpp:218-290`](wbdlg.cpp#L218-L290)), но инфраструктура заложена. |
-| **Select/Rubber band** | Нет | Да. `Mode::Select` с `QGraphicsView::RubberBandDrag`. | [`wbwidget.cpp:237-290`](wbwidget.cpp#L237-L290) |
-| **Translate/Rotate/Scale** | Перемещение только через команду move (трансляция). Поворот/масштаб отдельно не предусмотрены. | Полноценные интерактивные трансформации выбранных элементов. | Rotate/Scale реализованы в [`WbItem::mouseMoveEvent()`](wbitem.cpp#L131-215) с вычислением pivot (центра выделения) через [`WbScene::selectionCenter()`](wbscene.cpp#L84-119). |
-| **Erase** | Эквивалент delete по ID (но выбор элемента пользователем не специфицирован). | Режим стирания (`Mode::Erase`). | [`wbwidget.cpp:237-290`](wbwidget.cpp#L237-L290) — в этом режиме взаимодействие меняется (cross cursor, non-interactive). |
-| **Scroll/Pan** | Нет | `Mode::Scroll` с `ScrollHandDrag`. | Позволяет перемещаться по холсту. |
-| **DrawPath (freehand)** | Единственный способ рисования. | Основной режим — генерация сглаженных путей. | [`wbwidget.cpp:494-640`](wbwidget.cpp#L494-L640) — обработка mousePress/move/release для создания WbNewPath. |
-| **DrawImage** | Нет | Полноценная вставка изображений (выбор файла, кодирование в base64). | [`wbwidget.cpp:550-583`](wbwidget.cpp#L550-L583), [`wbnewimage.cpp`](wbnewimage.cpp). |
-| **UI: выбор цвета** | Нет (только атрибут stroke в команде). | Выбор цвета обводки (`act_color_`) и заливки (`act_fill_`). | [`wbdlg.cpp:150-200`](wbdlg.cpp#L150-L200), слоты `setStrokeColor()`, `setFillColor()` ([`wbdlg.cpp:372-470`](wbdlg.cpp#L372-L470) в продолжении). |
-| **UI: толщина линии** | Нет | Группы толщин (thin/medium/thick) с иконками, меню. | [`wbdlg.cpp:200-250`](wbdlg.cpp#L200-L250), `setStrokeWidth()` ([`wbdlg.cpp:440-450`](wbdlg.cpp#L440-L450)). |
-| **UI: тулбар и меню** | Нет | Полноценный тулбар (`toolbar_`) с действиями save/geometry/clear/end, селекторами цвета/ширины/режима. Контекстное меню для элементов. | [`wbdlg.cpp:120-330`](wbdlg.cpp#L120-L330), [`WbItem::contextMenuEvent()`](wbitem.cpp#L121-129), [`WbItem::constructContextMenu()`](wbitem.cpp#L338-430) (реализация меню для элементов). |
-| **Сохранение в SVG** | Не определено | Да, `act_save_` → `WbDlg::save()` сохраняет содержимое в SVG-файл. | [`wbdlg.cpp:372-420`](wbdlg.cpp#L372-L420) (приблизительно в соответствующем диапазоне). |
-| **Изменение геометрии холста** | Нет | `setGeometry()` — диалог для изменения viewBox. | [`wbdlg.cpp:404-440`](wbdlg.cpp#L404-L440). |
+| **Режимы редактирования** | Только создание пути (freehand drawing). Другие операции — команды move/delete. | Enum `WbWidget::Mode`: `Select`, `Translate`, `Rotate`, `Scale`, `Scroll`, `Erase`, `DrawPath`, `DrawLine`, `DrawRectangle`, `DrawEllipse`, `DrawCircle`, `DrawPolyline`, `DrawText`, `DrawImage`. | Многие режимы (Line/Rect/Ellipse/Circle/Polyline/Text) в UI закомментированы, но инфраструктура заложена; обработка ввода — в `WbWidget::mousePressEvent()`. |
+| **Select/Rubber band** | Нет. | Да. `Mode::Select` с `QGraphicsView::RubberBandDrag`. | `WbWidget::setMode()`. |
+| **Translate/Rotate/Scale** | Перемещение только командой move (трансляция). Поворот/масштаб не предусмотрены. | Интерактивные трансформации выбранных элементов. | `WbItem::mouseMoveEvent()`, центр выделения — `WbScene::selectionCenter()`. |
+| **Erase** | Эквивалент delete по `id` (выбор элемента не специфицирован). | Режим стирания `Mode::Erase`. | В этом режиме меняется взаимодействие (cross cursor, non-interactive), см. `WbWidget::setMode()`. |
+| **Scroll/Pan** | Нет. | `Mode::Scroll` с `ScrollHandDrag`. | Позволяет перемещаться по холсту. |
+| **DrawPath (freehand)** | Единственный способ рисования. | Основной режим — генерация сглаженных путей. | `WbWidget::mousePressEvent()`, `WbWidget::mouseMoveEvent()`, `WbWidget::mouseReleaseEvent()`, `WbNewPath`. |
+| **DrawImage** | Нет. | Вставка изображений (выбор файла, кодирование в base64). | `Mode::DrawImage`, `WbNewImage`. |
+| **UI: выбор цвета** | Нет (только атрибут `stroke` в команде). | Выбор цвета обводки (`act_color_`) и заливки (`act_fill_`). | `WbDlg::setStrokeColor()`, `WbDlg::setFillColor()`. |
+| **UI: толщина линии** | Нет. | Группы толщин (thin/medium/thick) с иконками, меню. | `WbDlg::setStrokeWidth()`. |
+| **UI: тулбар и меню** | Нет. | Тулбар с действиями save/geometry/clear/end и селекторами цвета/ширины/режима; контекстное меню для элементов. | `WbDlg`, `WbItem::contextMenuEvent()`, `WbItem::constructContextMenu()`. |
+| **Сохранение в SVG** | Не определено. | Да, `act_save_` → `WbDlg::save()`. | `wbdlg.cpp` |
+| **Изменение геометрии холста** | Нет. | `WbDlg::setGeometry()` — диалог для изменения `viewBox`. | `wbdlg.cpp` |
 
-## 9. Особенности генерации графики и оптимизации
+## 10. Особенности генерации графики и оптимизации
 
 | Аспект | XEP-0113 | Реализация Psi | Комментарии |
 |---|---|---|---|
-| **Модель рисования freehand** | Ломаные линии: добавление `L` команд при каждом mouse move. Рекомендует не записывать каждое движение для снижения размера. | Сглаживание через квадратичные кривые Безье. При движении мыши чередует контрольные точки: `controlPoint_` чередуется, при наличии используется `quadTo(*controlPoint_, newPos)`. | [`wbnewpath.cpp:69-96`](wbnewpath.cpp#L69-96). Даёт значительно более эстетичные плавные линии по сравнению с чистыми ломанными. |
-| **Тайминг/интерполяция** | Рекомендация: "dropping mouse events whose locations would be accurately interpolated" для экономии karma. | Есть таймер `adding_` и флаг `addVertex_`. Логика: `mousePress` может запускать таймер, `mouseMove` обрабатывает добавление вершин с контролем. | [`wbwidget.h:149-159`](wbwidget.h#L149-L159), [`wbwidget.cpp:494-640`](wbwidget.cpp#L494-L640) (см. обработку adding timer). Цель — баланс между плавностью и размером данных. |
-| **Сериализация временных элементов** | Неприменимо (не определено). | WbNewItem сериализуется через QSvgGenerator: рендерит графический элемент в SVG, парсит результат, добавляет уникальные ID детям. | [`wbnewitem.cpp:46-92`](wbnewitem.cpp#L46-L92). Интересный подход: использует Qt SVG generator для получения корректного SVG-представления. |
-| **Оптимизация путей при сериализации** | Рекомендации по использованию относительных координат (`l` вместо `L`) для уменьшения размера. | При сериализации WbNewPath "обрезает" лишние вложенные `<g>` и копирует релевантные атрибуты (stroke, stroke-width, stroke-linecap, fill, fill-opacity) в сам `<path>`. | [`wbnewpath.cpp:98-159`](wbnewpath.cpp#L98-L159). Оптимизация структуры SVG, а не минимизация координат. |
-| **Размер данных / karma** | Проблема явно упомянута в XEP-0113 (karma в jabberd). Даны конкретные советы по оптимизации. | SXE передаёт DOM-операции (insertNode, setAttribute, removeNode) — формат более компактный для изменений атрибутов (трансформации), но path с кривыми может быть больше по сравнению с ломанными L-командами. | Компромисс: лучшее визуальное качество vs потенциально больший размер. |
+| **Модель рисования freehand** | Ломаные линии: добавление `L` при каждом mouse move; рекомендуется не записывать каждое движение. | Сглаживание квадратичными кривыми Безье: `controlPoint_` чередуется, при наличии используется `quadTo(*controlPoint_, newPos)`. | `WbNewPath::parseCursorMove()`. Даёт более плавные линии, чем чистые ломаные. |
+| **Тайминг/интерполяция** | Рекомендация «dropping mouse events whose locations would be accurately interpolated» для экономии karma. | Есть таймер `adding_` и флаг `addVertex_`. | Поля `WbWidget`; баланс между плавностью и размером данных. |
+| **Сериализация временных элементов** | Неприменимо (не определено). | `WbNewItem::serializeToSvg()` рендерит элемент через `QSvgGenerator`, парсит результат и добавляет уникальные `id` детям. | Использует Qt SVG generator для получения корректного SVG. |
+| **Оптимизация путей при сериализации** | Рекомендуется использовать относительные координаты (`l` вместо `L`) для уменьшения размера. | `WbNewPath::serializeToSvg()` «обрезает» лишние вложенные `<g>` и копирует релевантные атрибуты (`stroke`, `stroke-width`, `stroke-linecap`, `fill`, `fill-opacity`) в сам `<path>`. | Оптимизация структуры SVG, а не минимизация координат. |
+| **Размер данных / karma** | Проблема karma (jabberd) явно упомянута; даны советы по оптимизации. | SXE передаёт `<new>`/`<set>`/`<remove>`; для изменений атрибутов (трансформации) это компактно, но path с кривыми может быть больше ломаных `L`-команд. | Компромисс: качество против размера. |
 
-## 10. Обработка изображений, текста и специальных случаев
+## 11. Обработка изображений, текста и специальных случаев
 
 | Возможность | XEP-0113 | Реализация Psi | Комментарии |
 |---|---|---|---|
-| **Изображения** | Не предусмотрены. | Поддерживаются (DrawImage). | При сериализации: читает файл, конвертирует в base64, формирует `<image>` с `xmlns:xlink="http://www.w3.org/1999/xlink"` и `xlink:href="data:image/...;base64,..."`. Позиционируется по координатам курсора (`x`, `y`). См. [`wbnewimage.cpp:45-93`](wbnewimage.cpp#L45-93). |
-| **Текст** | Нет явной поддержки. Предлагается представлять символы как пути (Hershey fonts) — см. пример в XEP-0113. | Частично заложен. `Mode::DrawText` есть в enum ([`wbwidget.h:80`](wbwidget.h#L80)), но в UI соответствующий action закомментирован ([`wbdlg.cpp:270-290`](wbdlg.cpp#L270-L290): строки с DrawText закомментированы). Реализации WbNewText нет в текущих файлах. | Функциональность не реализована в полной мере, но архитектурно предусмотрена. |
-| **Очистка экрана** | Не определена в спецификации. | `WbWidget::clear()` удаляет все элементы (кроме, возможно, структуры SVG) из корневого SVG. | [`wbwidget.cpp:320-332`](wbwidget.cpp#L320-332). Простое удаление всех WbItem-узлов. |
-| **Групповая работа (MUC)** | Поддерживается (type='groupchat'), см. пример 6 в XEP-0113. | Поддерживается через SXE-сессии. `WbDlg` хранит `groupChat_` (флаг), передаётся при создании ([`wbdlg.cpp:95-120`](wbdlg.cpp#L95-L120)). SXE работает как в 1:1, так и в групповых контекстах в зависимости от настроек сессии. | Интеграция с MUC опосредована через SXE и PsiAccount. |
-| **Валидация/безопасность** | Нет специальных требований безопасности в XEP. | Стандартные практики Qt/SVG. Изображения вставляются как data URI (локальные файлы). Нет явной фильтрации SVG, но работа идёт с DOM, управляемым SXE. | Особых механизмов санитизации в коде не видно (код сфокусирован на функциональности). |
+| **Изображения** | Не предусмотрены. | Поддерживаются (`Mode::DrawImage`). | `WbNewImage::serializeToSvg()`: читает файл, конвертирует в base64, формирует `<image>` с `xmlns:xlink` и `xlink:href="data:image/...;base64,..."`, задаёт `x`, `y`. |
+| **Текст** | Нет явной поддержки. Предлагается представлять символы как пути (Hershey fonts). | Частично заложен: `Mode::DrawText` есть в enum, но соответствующий action в UI закомментирован; класса `WbNewText` нет. | Функциональность не реализована, но архитектурно предусмотрена. |
+| **Очистка экрана** | Не определена в спецификации. | `WbWidget::clear()` удаляет все `WbItem`-узлы из корневого SVG. | Простое удаление всех управляемых элементов. |
+| **Групповая работа (MUC)** | Поддерживается (`type='groupchat'`). | Поддерживается через SXE-сессии; `WbDlg` хранит флаг `groupChat_`. | SXE работает и в 1:1, и в групповых контекстах. |
+| **Валидация/безопасность** | Специальных требований безопасности нет. | Стандартные практики Qt/SVG; изображения вставляются как data URI. | Явной фильтрации SVG в коде нет. |
 
-## 11. Обнаружение поддержки (feature discovery) и интеграция с клиентом
+## 12. Обнаружение поддержки (feature discovery) и интеграция с клиентом
 
 | Аспект | XEP-0113 | Реализация Psi | Ссылки |
 |---|---|---|---|
-| **Feature namespace** | `http://jabber.org/protocol/swb` (зарегистрировать в XMPP Registrar) | `http://www.w3.org/2000/svg` (WBNS макрос определён как `WBNS` = `"http://www.w3.org/2000/svg"`) | [`wbmanager.h:39`](wbmanager.h#L39) — `#define WBNS "http://www.w3.org/2000/svg"`. Явное указание на SVG, а не на XEP-0113. |
-| **Discovery** | Рекомендуется XEP-0030 (Service Discovery). Детали не специфицированы. | Через SXE feature discovery: `sxemanager_->checkSupport(target, features)` где `features` содержит `WBNS`. | [`wbmanager.cpp:186-196`](wbmanager.cpp#L186-L196). |
-| **Invitation callback** | Не определён. | `sxemanager` эмитит `invitationCallback(Jid, QList<QString>, bool*)`, WbManager подключается к нему. При наличии WBNS в features предлагает пользователю принять/отклонить (через `WbRequest` с event loop). | [`wbmanager.cpp:138-145`](wbmanager.cpp#L138-L145), [`wbmanager.cpp:252-285`](wbmanager.cpp#L252-L285), [`wbmanager.cpp:62-111`](wbmanager.cpp#L62-L111) (класс WbRequest). |
-| **Интеграция с PsiAccount** | Неприменимо. | WbManager принимает `PsiAccount* pa`, передаёт диалогам. WbDlg отображает аккаунт через `AccountLabel`. | [`wbmanager.h:89-115`](wbmanager.h#L89-L115), [`wbdlg.cpp:95-150`](wbdlg.cpp#L95-L150). |
-| **Обработка peer left** | Не специфицировано. | `session` эмитит `peerLeftSession(Jid)`, WbDlg реагирует обновлением заголовка/текста. | [`wbdlg.cpp:355-360`](wbdlg.cpp#L355-L360), подключение в [`wbmanager.cpp:232-249`](wbmanager.cpp#L232-L249). |
+| **Протокольный feature** | `http://jabber.org/protocol/swb` | `http://jabber.org/protocol/sxe` (`SXENS`) | `sxesession.h` |
+| **Application feature** | — (тип задан namespace’ом SWB) | `http://www.w3.org/2000/svg` (`WBNS`) | `#define WBNS` в `wbmanager.h` |
+| **Discovery** | Рекомендуется XEP-0030, детали не специфицированы. | `SxeManager::checkSupport()` проверяет `SXENS` **и** переданные features (среди них `WBNS`). | `wbmanager.cpp` (`WbManager::openWhiteboard()` формирует список features) |
+| **Invitation callback** | Не определён. | `SxeManager` эмитит `invitationCallback(Jid, QList<QString>, bool*)`; `WbManager::checkInvitation()` подключается к нему и при наличии `WBNS` предлагает пользователю принять/отклонить. | `WbManager::requestActivated()`, класс `WbRequest` |
+| **Интеграция с PsiAccount** | Неприменимо. | `WbManager` принимает `PsiAccount*`, передаёт диалогам; `WbDlg` отображает аккаунт через `AccountLabel`. | `wbmanager.h`, `wbdlg.cpp` |
+| **Обработка ухода участника** | Не специфицировано. | SXE-сигнал `peerLeftSession()`; `WbDlg::peerLeftSession()` обновляет заголовок/текст. | `wbmanager.cpp`, `wbdlg.cpp` |
 
-## 12. Сводная таблица ключевых отличий
+## 13. Сводная таблица ключевых отличий
 
 | Критерий | XEP-0113 | Psi Whiteboarding | Степень отличия |
 |---|---|---|---|
-| **Подход к синхронизации** | Message-based (команды в `<message>`) | **SXE-based** (совместное редактирование DOM) | **Критическое** |
-| **Namespace** | `http://jabber.org/protocol/swb` | `http://www.w3.org/2000/svg` (WBNS) | **Критическое** |
+| **Подход к синхронизации** | Message-based (команды в `<message>`) | **SXE-based** (Shared XML Editing, совместное редактирование DOM) | **Критическое** |
+| **Протокольный namespace** | `http://jabber.org/protocol/swb` | `http://jabber.org/protocol/sxe` | **Критическое** |
+| **Application feature** | — | `http://www.w3.org/2000/svg` (`WBNS`) | Существенное |
 | **Формат данных** | Только SWB-элементы (path/move/delete) | Полноценный **SVG DOM** | **Критическое** |
-| **Геометрия путей** | Только ломаные (M/m,L/l) | Сглаженные **квадратичные кривые Безье** (quadTo) | Существенное |
+| **Геометрия путей** | Только ломаные (M/m, L/l) | Сглаженные **квадратичные кривые Безье** (`quadTo`) | Существенное |
 | **Трансформации** | Отдельная команда `move` (только смещение) | **SVG transform matrices** (translate/rotate/scale) | Существенное |
-| **Структура документа** | Набор изолированных команд/элементов | Иерархический **SVG DOM** с возможностью группировки (`<g>`) | Существенное |
+| **Структура документа** | Набор изолированных команд/элементов | Иерархический **SVG DOM** с группировкой (`<g>`) | Существенное |
 | **Поддержка изображений** | Нет | **Есть** (data URI base64) | Существенное |
 | **Управление слоями (Z-order)** | Нет | **Есть** (bring/send to front/back) | Значительное |
 | **Группировка** | Нет | **Есть** (group/ungroup) | Значительное |
-| **Режимы редактирования** | Только рисование | Много режимов (select/transform/erase/scroll/draw/image и др.) | Значительное |
-| **Модель состояний** | Дельтовая (команды) | **Полное состояние (DOM)** с синхронизацией | Значительное |
-| **Требование ID** | Опционально (нельзя оперировать без ID) | **Автоматически генерируется** для всех элементов | Умеренное |
+| **Режимы редактирования** | Только рисование | Много режимов (select/transform/erase/scroll/draw/image) | Значительное |
+| **Модель состояний** | Дельтовая (команды) | **Полное состояние (DOM)** с версионированием записей | Значительное |
+| **Требование ID** | Опционально (без ID нельзя оперировать) | **Автоматически генерируется** | Умеренное |
 | **Сохранение** | Не определено | **Есть** (экспорт в SVG) | Значительное |
-| **Расширяемость** | Намеренно не расширяемый (simple) | Высоко расширяемый (база на SVG+DOM) | Принципиальное |
+| **Расширяемость** | Намеренно не расширяемый | Высоко расширяемый (база на SVG + DOM) | Принципиальное |
 
-## 13. Выводы и рекомендации для реализации в других клиентах
+## 14. Выводы и рекомендации для реализации в других клиентах
 
-### 13.1 Ключевой вывод
+### 14.1 Ключевой вывод
 
-Реализация whiteboarding в Psi **не является реализацией XEP-0113** в строгом смысле. Она использует иной подход: коллаборативное редактирование SVG DOM через SXE вместо обмена командами SWB в XMPP-сообщениях. Feature namespace указывает на ориентацию на SVG (`http://www.w3.org/2000/svg`), а не на XEP-0113.
+Реализация whiteboarding в Psi **не является реализацией XEP-0113** в строгом смысле. Она использует иной подход: коллаборативное редактирование SVG DOM через **Shared XML Editing (XEP-0284)** вместо обмена командами SWB в XMPP-сообщениях. Протокольный namespace — `http://jabber.org/protocol/sxe`, тогда как `http://www.w3.org/2000/svg` — это application feature (тип документа).
 
-### 13.2 Когда выбирать подход XEP-0113
-
-Рекомендуется при следующих приоритетах:
-- **Максимальная простота** реализации (минимальный объём кода)
-- **Совместимость** с другими клиентами, реализующими именно XEP-0113
-- **Минимальные зависимости** (только XMPP, без SXE)
-- **Лёгкость** отладки и понимания протокола
-- Нужна поддержка в очень ограниченных окружениях
-
-**Особенности реализации по XEP-0113:** использовать сообщения с `<x xmlns="http://jabber.org/protocol/swb">`, реализовать обработку только path/move/delete с ограниченным subset SVG path (M/m,L/l).
-
-### 13.3 Когда выбирать подход Psi (SXE + SVG)
+### 14.2 Когда выбирать подход XEP-0113
 
 Рекомендуется при следующих приоритетах:
-- **Богатая функциональность** (трансформации, группировка, изображения, слои)
-- **Качество рисования** (сглаженные кривые)
-- **Надёжная синхронизация** состояния документа (DOM-based)
-- **Расширяемость** под будущие нужды (естественный путь к полному SVG)
-- **Интерактивное редактирование** (select/rotate/scale/move с визуальным feedback)
+- **Максимальная простота** реализации (минимальный объём кода);
+- **Совместимость** с другими клиентами, реализующими именно XEP-0113;
+- **Минимальные зависимости** (только XMPP, без SXE);
+- **Лёгкость** отладки и понимания протокола;
+- Работа в очень ограниченных окружениях.
 
-### 13.4 Практические рекомендации для реализации
+**Особенности реализации по XEP-0113:** использовать сообщения с `<x xmlns="http://jabber.org/protocol/swb">`, обрабатывать только `path`/`move`/`delete` с ограниченным подмножеством SVG path (`M/m`, `L/l`).
 
-1. **Чётко определить целевую совместимость.** Если требуется взаимодействие с Psi whiteboarding — реализация XEP-0113 не подойдёт. Нужно либо реализовывать SXE+SVG-подход Psi, либо вести двустороннюю совместимость (что маловероятно).
+### 14.3 Когда выбирать подход Psi (SXE + SVG)
 
-2. **Для максимальной совместимости с экосистемой:** рассмотреть современную альтернативу XEP-0113 (например, более свежие whiteboarding XEP'ы, если таковые существуют) — XEP-0113 имеет статус Deferred.
+Рекомендуется при следующих приоритетах:
+- **Богатая функциональность** (трансформации, группировка, изображения, слои);
+- **Качество рисования** (сглаженные кривые);
+- **Надёжная синхронизация** состояния документа (DOM-based, с версиями записей);
+- **Расширяемость** под будущие нужды (естественный путь к полному SVG);
+- **Интерактивное редактирование** (select/rotate/scale/move с визуальным feedback).
 
-3. **Если выбирать путь, близкий к Psi:** 
-- Использовать коллаборативную синхронизацию DOM (SXE или аналог)
-- Хранить документ как SVG
-- Генерировать сглаженные пути (quadTo/Bezier) для лучшего UX
-- Автоматически назначать ID всем элементам
-- Поддержка трансформаций через SVG transform matrices более гибкая, чем дельты move
+### 14.4 Практические рекомендации для реализации
 
-4. **Обработка freehand:** Psi демонстрирует хороший баланс — quadTo даёт сглаживание без чрезмерного раздувания размера пути (по сравнению с генерацией очень плотных L-точек).
+1. **Чётко определить целевую совместимость.** Для взаимодействия с Psi нужно реализовывать профиль SXE (`http://jabber.org/protocol/sxe` + `http://www.w3.org/2000/svg`), а не XEP-0113.
+2. **Учесть различие профилей SXE.** Psi использует раннюю схему с `<negotiation>`; современная XEP-0284 использует Jingle и `urn:xmpp:sxe:0`. Редактирующие элементы (`<new>`/`<set>`/`<remove>`) в обоих профилях одинаковы.
+3. **Если выбирать путь, близкий к Psi:**
+   - использовать коллаборативную синхронизацию DOM (SXE или аналог);
+   - хранить документ как SVG;
+   - генерировать сглаженные пути (`quadTo`/Bezier) для лучшего UX;
+   - автоматически назначать `id` всем элементам;
+   - предпочитать трансформации через SVG transform matrices, а не дельты move.
+4. **Обработка freehand:** `quadTo` даёт сглаживание без чрезмерного раздувания размера пути по сравнению с очень плотными `L`-точками.
+5. **Архитектурный шаблон из Psi:** чёткое разделение временных элементов (`WbNewItem`) при рисовании и зафиксированных (`WbItem`), сериализация через SVG generator — удачное решение.
 
-5. **Архитектурный шаблон из Psi:** чёткое разделение временных элементов (WbNewItem) при рисовании и зафиксированных (WbItem), сериализация через SVG generator — удачное решение.
-
-## 14. Список использованных файлов исходного кода
+## 15. Список использованных файлов исходного кода
 
 Для анализа были изучены следующие файлы модуля whiteboarding:
 
-- [`wbmanager.h`](wbmanager.h), [`wbmanager.cpp`](wbmanager.cpp) — менеджер сессий и диалогов
-- [`wbdlg.h`](wbdlg.h), [`wbdlg.cpp`](wbdlg.cpp) — UI диалогового окна
-- [`wbwidget.h`](wbwidget.h), [`wbwidget.cpp`](wbwidget.cpp) — основной виджет и логика редактирования
-- [`wbscene.h`](wbscene.h), [`wbscene.cpp`](wbscene.cpp) — сцена, группировка, Z-order
-- [`wbitem.h`](wbitem.h), [`wbitem.cpp`](wbitem.cpp) — элементы на сцене, трансформации
-- [`wbnewitem.h`](wbnewitem.cpp), [`wbnewitem.cpp`](wbnewitem.cpp) — базовый класс временных элементов
-- [`wbnewpath.h`](wbnewpath.h), [`wbnewpath.cpp`](wbnewpath.cpp) — рисование путей (freehand)
-- [`wbnewimage.h`](wbnewimage.h), [`wbnewimage.cpp`](wbnewimage.cpp) — вставка изображений
-- [`CMakeLists.txt`](CMakeLists.txt) — сборка модуля
-- Документация/правила: [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md), [`.windsurfrules`](.windsurfrules), [`.cursor/rules/*`](.cursor/rules/)
+- [`wbmanager.h`](wbmanager.h), [`wbmanager.cpp`](wbmanager.cpp) — менеджер сессий и диалогов;
+- [`wbdlg.h`](wbdlg.h), [`wbdlg.cpp`](wbdlg.cpp) — UI диалогового окна;
+- [`wbwidget.h`](wbwidget.h), [`wbwidget.cpp`](wbwidget.cpp) — основной виджет и логика редактирования;
+- [`wbscene.h`](wbscene.h), [`wbscene.cpp`](wbscene.cpp) — сцена, группировка, Z-order;
+- [`wbitem.h`](wbitem.h), [`wbitem.cpp`](wbitem.cpp) — элементы на сцене, трансформации;
+- [`wbnewitem.h`](wbnewitem.h), [`wbnewitem.cpp`](wbnewitem.cpp) — базовый класс временных элементов;
+- [`wbnewpath.h`](wbnewpath.h), [`wbnewpath.cpp`](wbnewpath.cpp) — рисование путей (freehand);
+- [`wbnewimage.h`](wbnewimage.h), [`wbnewimage.cpp`](wbnewimage.cpp) — вставка изображений;
+- [`CMakeLists.txt`](CMakeLists.txt) — сборка модуля;
+- документы и правила: [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md), [`.windsurfrules`](.windsurfrules), [`.cursor/rules/*`](.cursor/rules/).
 
-## 15. Ссылки
+Кроме того, изучались исходники SXE из дерева Psi (`src/sxe/`): `sxemanager.cpp`, `sxesession.h`, `sxerecord.h`/`sxerecord.cpp`, `sxenewedit.cpp`, `sxerecordedit.cpp`, `sxeremoveedit.cpp`. В данной рабочей копии присутствует только модуль `whiteboarding/`, поэтому файлы SXE анализировались по репозиторию Psi.
 
-1. [XEP-0113: Simple Whiteboarding](https://xmpp.org/extensions/xep-0113.html) — официальная спецификация (v0.2, Deferred)
-2. [SXE (Simple XML Exchange)](https://xmpp.org/extensions/xep-0214.html) — протокол совместного редактирования XML (контекст использования в Psi)
-3. [SVG 1.1 Specification](https://www.w3.org/TR/SVG11/) — формат SVG, используемый реализацией
-4. [Scalable Vector Graphics (SVG) Tiny 1.2](https://www.w3.org/TR/SVGTiny12/) — baseProfile tiny, используемый в EMPTYWB
+## 16. Ссылки
 
+1. [XEP-0113: Simple Whiteboarding](https://xmpp.org/extensions/xep-0113.html) — официальная спецификация (v0.2, Deferred, Informational).
+2. [XEP-0284: Shared XML Editing (SXE)](https://xmpp.org/extensions/xep-0284.html) — протокол коллаборативного редактирования XML, используемый Psi (namespace `http://jabber.org/protocol/sxe`; стандартизованная редакция — Jingle + `urn:xmpp:sxe:0`).
+3. [XEP-0166: Jingle](https://xmpp.org/extensions/xep-0166.html) — управление сессиями в стандартизованной редакции SXE.
+4. [XEP-0030: Service Discovery](https://xmpp.org/extensions/xep-0030.html) — обнаружение поддержки.
+5. [SVG 1.1 Specification](https://www.w3.org/TR/SVG11/) — формат SVG, используемый реализацией.
+6. [Scalable Vector Graphics (SVG) Tiny 1.2](https://www.w3.org/TR/SVGTiny12/) — `baseProfile='tiny'`, используемый в `EMPTYWB`.
+7. [`xep-collaborative-svg-whiteboarding.xml`](xep-collaborative-svg-whiteboarding.xml) — формализованный черновик SVG-профиля поверх SXE (в этом репозитории).
