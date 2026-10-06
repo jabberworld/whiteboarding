@@ -1,0 +1,767 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE xep SYSTEM 'xep.dtd' [
+  <!ENTITY % ents SYSTEM 'xep.ent'>
+%ents;
+]>
+<?xml-stylesheet type='text/xsl' href='xep.xsl'?>
+<xep>
+<header>
+  <title>SVG Whiteboarding over Shared XML Editing (Extended Profile)</title>
+  <abstract>
+    This specification defines an SVG whiteboard as a Jingle application type
+    whose shared document is synchronized with Shared XML Editing (XEP-0284).
+    This is the extended profile: it contains the minimal, standards-only
+    profile plus optional, separately negotiated extensions for capability
+    discovery, image hosting, large attachments and initiation from a chat.
+    It is intended to replace the deprecated, Psi-specific whiteboarding profile
+    that predated XEP-0284.
+  </abstract>
+  <legal>
+    <copyright>This XMPP Extension Protocol is copyright © 1999 – 2026 by the XMPP Standards Foundation (XSF).</copyright>
+    <permissions>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</permissions>
+    <warranty>## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</warranty>
+    <liability>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</liability>
+    <conformance>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;https://xmpp.org/about/xsf/ipr-policy&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</conformance>
+  </legal>
+  <number>XXXX</number>
+  <status>Experimental</status>
+  <type>Standards Track</type>
+  <sig>Standards</sig>
+  <approver>Council</approver>
+  <dependencies>
+    <spec>XMPP Core</spec>
+    <spec>XEP-0030</spec>
+    <spec>XEP-0045</spec>
+    <spec>XEP-0115</spec>
+    <spec>XEP-0166</spec>
+    <spec>XEP-0234</spec>
+    <spec>XEP-0284</spec>
+    <spec>XEP-0353</spec>
+    <spec>XEP-0363</spec>
+  </dependencies>
+  <supersedes/>
+  <supersededby/>
+  <shortname>svg-whiteboard</shortname>
+  <author>
+    <firstname>Draft</firstname>
+    <surname>Editor</surname>
+    <email>editor@example.org</email>
+    <jid>editor@example.org</jid>
+  </author>
+  <revision>
+    <version>0.1</version>
+    <date>2026-10-06</date>
+    <initials>de</initials>
+    <remark>Initial extended profile: minimal profile plus optional extensions.</remark>
+  </revision>
+</header>
+
+<section1 topic='Introduction' anchor='intro'>
+  <p>
+    XEP-0113 defines a minimal, message-based whiteboarding protocol built on a
+    restricted subset of SVG path data. It is stateless and does not provide a
+    shared document model.
+  </p>
+  <p>
+    XEP-0284 (Shared XML Editing, SXE) instead provides a general mechanism for
+    collaboratively editing an XML document: participants synchronize a set of
+    records that map onto a DOM tree, and XEP-0284 defines Jingle as the session
+    management layer for such sessions. A whiteboard is a natural SXE
+    application: the shared XML document is an SVG document.
+  </p>
+  <p>
+    This specification defines that application type. It is deliberately minimal:
+    it adds no new XML vocabulary beyond one Jingle application-type namespace,
+    and it defines only the conventions needed to interpret the shared SVG
+    document. Everything else — session management, records, edits, conflict
+    handling — is defined by Jingle (XEP-0166) and Shared XML Editing (XEP-0284).
+  </p>
+  <p>
+    An earlier whiteboarding profile used by the Psi client relied on a
+    pre-standardization (ProtoXEP) form of SXE with a custom negotiation
+    vocabulary and the namespace <tt>http://jabber.org/protocol/sxe</tt>. That
+    profile is deprecated. This specification is the standards-based replacement,
+    and Psi is expected to be updated to implement it.
+  </p>
+  <p>
+    This document is the extended profile. It is a strict superset of the
+    minimal profile: every requirement of the minimal profile applies, and the
+    additional capabilities in <link url='#extensions'>Section 12</link> are
+    optional and individually negotiated. A client implementing only the minimal
+    profile can participate in the same session.
+  </p>
+</section1>
+
+<section1 topic='Requirements' anchor='reqs'>
+  <ol>
+    <li>Allow freehand drawing and geometric editing on a shared canvas.</li>
+    <li>Represent the canvas as a self-describing SVG document.</li>
+    <li>Use existing standards for session management and synchronization, introducing no new synchronization vocabulary.</li>
+    <li>Support one-to-one and multi-user whiteboards.</li>
+    <li>Interoperate across independent implementations.</li>
+    <li>Require no server modifications beyond those already required by the referenced specifications.</li>
+  </ol>
+</section1>
+
+<section1 topic='Glossary' anchor='glossary'>
+  <dl>
+    <di><dt>Shared SVG Document</dt><dd>The SVG document, rooted at &lt;svg/&gt;, that holds the whiteboard contents and is synchronized by SXE.</dd></di>
+    <di><dt>Whiteboard Session</dt><dd>An SXE session (XEP-0284) whose Jingle application type is <tt>urn:xmpp:jingle:apps:svg-whiteboard:0</tt>.</dd></di>
+    <di><dt>Host</dt><dd>The entity that relays SXE payloads; the session initiator, a Multi-User Chat room, or a dedicated component.</dd></di>
+    <di><dt>Record</dt><dd>The synchronized state of a single DOM node (defined in XEP-0284).</dd></di>
+    <di><dt>RID</dt><dd>The record identifier (defined in XEP-0284), distinct from the SVG <tt>id</tt> attribute.</dd></di>
+    <di><dt>Canvas</dt><dd>The drawing area, defined by the <tt>viewBox</tt> attribute of the root &lt;svg/&gt; element.</dd></di>
+  </dl>
+</section1>
+
+<section1 topic='Application Format' anchor='appformat'>
+  <p>
+    The whiteboard is identified as a Jingle application type by the namespace
+    <tt>urn:xmpp:jingle:apps:svg-whiteboard:0</tt>. This namespace is used on the
+    Jingle <tt>&lt;description/&gt;</tt> element and has no child elements in the
+    minimal profile.
+  </p>
+  <p>
+    The shared XML document of the session is an SVG document whose root element
+    is &lt;svg/&gt; in the namespace <tt>http://www.w3.org/2000/svg</tt>. The
+    document conventions are defined in <link url='#document'>Section 10</link>.
+  </p>
+</section1>
+
+<section1 topic='Session Management' anchor='session'>
+  <p>
+    Session management is provided by Jingle (XEP-0166), as required by XEP-0284.
+    The application supplies the <tt>&lt;description/&gt;</tt> element, and the
+    transport is the SXE Jingle transport
+    <tt>urn:xmpp:jingle:transports:sxe</tt>, which carries at least one
+    <tt>&lt;host/&gt;</tt> element.
+  </p>
+
+  <section2 topic='Initiation' anchor='session-initiate'>
+    <example caption='Initiator sends a Jingle session-initiate'>
+      <![CDATA[
+<iq from='kingclaudius@shakespeare.lit/castle'
+    to='laertes@shakespeare.lit/castle'
+    id='jingle1'
+    type='set'>
+  <jingle xmlns='urn:xmpp:jingle:1'
+          action='session-initiate'
+          initiator='kingclaudius@shakespeare.lit/castle'
+          sid='851ba2'>
+    <content creator='initiator' name='whiteboard'>
+      <description xmlns='urn:xmpp:jingle:apps:svg-whiteboard:0'/>
+      <transport xmlns='urn:xmpp:jingle:transports:sxe'>
+        <host>kingclaudius@shakespeare.lit</host>
+      </transport>
+    </content>
+  </jingle>
+</iq>
+]]></example>
+    <p>The responder acknowledges the offer as described in XEP-0166.</p>
+  </section2>
+
+  <section2 topic='Acceptance' anchor='session-accept'>
+    <example caption='Responder accepts the session'>
+      <![CDATA[
+<iq from='laertes@shakespeare.lit/castle'
+    to='kingclaudius@shakespeare.lit/castle'
+    id='jingle2'
+    type='set'>
+  <jingle xmlns='urn:xmpp:jingle:1'
+          action='session-accept'
+          initiator='kingclaudius@shakespeare.lit/castle'
+          sid='851ba2'>
+    <content creator='initiator' name='whiteboard'>
+      <description xmlns='urn:xmpp:jingle:apps:svg-whiteboard:0'/>
+      <transport xmlns='urn:xmpp:jingle:transports:sxe'>
+        <host>kingclaudius@shakespeare.lit</host>
+      </transport>
+    </content>
+  </jingle>
+</iq>
+]]></example>
+  </section2>
+
+  <section2 topic='Termination and Refusal' anchor='session-terminate'>
+    <p>
+      A session is ended, or an offer refused, with a Jingle
+      <tt>session-terminate</tt>. A responder that does not support the
+      application type SHOULD use the <tt>unsupported-applications</tt> reason.
+    </p>
+    <example caption='Responder refuses the session'>
+      <![CDATA[
+<iq from='laertes@shakespeare.lit/castle'
+    to='kingclaudius@shakespeare.lit/castle'
+    id='jingle3'
+    type='set'>
+  <jingle xmlns='urn:xmpp:jingle:1'
+          action='session-terminate'
+          initiator='kingclaudius@shakespeare.lit/castle'
+          sid='851ba2'>
+    <reason>
+      <unsupported-applications/>
+    </reason>
+  </jingle>
+</iq>
+]]></example>
+  </section2>
+</section1>
+
+<section1 topic='Feature Discovery' anchor='disco'>
+  <p>
+    An entity that supports this profile MUST advertise, via Service Discovery
+    (XEP-0030), the following features:
+  </p>
+  <ul>
+    <li><tt>urn:xmpp:jingle:1</tt> — Jingle is supported.</li>
+    <li><tt>urn:xmpp:sxe:0</tt> — Shared XML Editing is supported.</li>
+    <li><tt>urn:xmpp:jingle:transports:sxe</tt> — the SXE Jingle transport is supported.</li>
+    <li><tt>urn:xmpp:jingle:apps:svg-whiteboard:0</tt> — this application type is supported.</li>
+  </ul>
+  <p>
+    It SHOULD also expose the shared-editing identity described in XEP-0284
+    (discovery identity type <tt>sxe</tt> in the <tt>collaboration</tt> category).
+  </p>
+  <example caption='Service discovery response advertising SVG whiteboarding'>
+    <![CDATA[
+<iq from='kingclaudius@shakespeare.lit/castle'
+    to='laertes@shakespeare.lit/castle'
+    id='disco1'
+    type='result'>
+  <query xmlns='http://jabber.org/protocol/disco#info'>
+    <identity category='collaboration' type='sxe'/>
+    <feature var='urn:xmpp:jingle:1'/>
+    <feature var='urn:xmpp:sxe:0'/>
+    <feature var='urn:xmpp:jingle:transports:sxe'/>
+    <feature var='urn:xmpp:jingle:apps:svg-whiteboard:0'/>
+  </query>
+</iq>
+]]></example>
+</section1>
+
+<section1 topic='Connecting and Initial State Synchronization' anchor='state'>
+  <p>
+    Once the Jingle session exists, participants use the SXE payload defined in
+    XEP-0284: an &lt;sxe/&gt; element in the namespace <tt>urn:xmpp:sxe:0</tt>,
+    carried in a &lt;message/&gt;, with REQUIRED <tt>session</tt> and
+    <tt>id</tt> attributes.
+  </p>
+
+  <section2 topic='Connecting' anchor='connect'>
+    <p>
+      To join a session, an entity sends an SXE <tt>&lt;connect/&gt;</tt> element
+      to the host.
+    </p>
+    <example caption='Joiner connects to the session'>
+      <![CDATA[
+<message from='laertes@shakespeare.lit/castle'
+         to='kingclaudius@shakespeare.lit/castle'>
+  <sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='e'>
+    <connect/>
+  </sxe>
+</message>
+]]></example>
+  </section2>
+
+  <section2 topic='State Offer, Acceptance and Refusal' anchor='state-offer'>
+    <p>
+      The host (or the initiator) offers the current document state with
+      <tt>&lt;state-offer/&gt;</tt>. The offer MUST contain the same
+      <tt>&lt;description/&gt;</tt> element that was used in the Jingle
+      session-initiate, so that the joiner can verify the application type.
+    </p>
+    <example caption='Host offers the state'>
+      <![CDATA[
+<message from='kingclaudius@shakespeare.lit/castle'
+         to='laertes@shakespeare.lit/castle'>
+  <sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='f'>
+    <state-offer>
+      <description xmlns='urn:xmpp:jingle:apps:svg-whiteboard:0'/>
+    </state-offer>
+  </sxe>
+</message>
+]]></example>
+    <p>
+      The joiner accepts one offer with <tt>&lt;accept-state/&gt;</tt> and refuses
+      unwanted offers with <tt>&lt;refuse-state/&gt;</tt>.
+    </p>
+    <example caption='Joiner accepts the state offer'>
+      <![CDATA[
+<sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='g'>
+  <accept-state/>
+</sxe>
+]]></example>
+  </section2>
+
+  <section2 topic='Sending the State' anchor='state-send'>
+    <p>
+      The state is sent inside a <tt>&lt;state/&gt;</tt> element bracketed by
+      <tt>&lt;document-begin/&gt;</tt> and <tt>&lt;document-end/&gt;</tt>. The
+      <tt>prolog</tt> attribute of <tt>&lt;document-begin/&gt;</tt> carries the
+      XML prolog (including the DOCTYPE) as a <tt>data:</tt> URI.
+    </p>
+    <example caption='Sending the state of a new, empty whiteboard'>
+      <![CDATA[
+<message from='kingclaudius@shakespeare.lit/castle'
+         to='laertes@shakespeare.lit/castle'>
+  <sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='b'>
+    <state>
+      <document-begin prolog='data:text/xml,%3C%3Fxml%20version%3D%271.0%27%3F%3E%0A%3C%21DOCTYPE%20svg%20PUBLIC%20%27-%2F%2FW3C%2F%2FDTD%20SVG%201.1%2F%2FEN%27%20%27http%3A%2F%2Fwww.w3.org%2FGraphics%2FSVG%2F1.1%2FDTS%2Fsvg11.dtd%27%3E'/>
+      <new rid='0' type='element' ns='http://www.w3.org/2000/svg' name='svg' primary-weight='0'/>
+      <new rid='1' type='attr' name='version' chdata='1.2' parent='0'/>
+      <new rid='2' type='attr' name='baseProfile' chdata='tiny' parent='0'/>
+      <new rid='3' type='attr' name='viewBox' chdata='0 0 600 400' parent='0'/>
+      <document-end last-sender='' last-id=''/>
+    </state>
+  </sxe>
+</message>
+]]></example>
+  </section2>
+</section1>
+
+<section1 topic='Editing the Whiteboard' anchor='editing'>
+  <p>
+    All edits are SXE edits inside a <tt>&lt;state/&gt;</tt> element
+    (XEP-0284). The three edit elements are:
+  </p>
+  <ul>
+    <li><tt>&lt;new/&gt;</tt> — create a record (attributes <tt>rid</tt>, <tt>type</tt>, <tt>parent</tt>, <tt>primary-weight</tt>, <tt>ns</tt>, <tt>name</tt>, <tt>chdata</tt>, and optionally <tt>version</tt>).</li>
+    <li><tt>&lt;set/&gt;</tt> — change a record (attributes <tt>target</tt>, <tt>version</tt>, and the field or fields being changed, including <tt>parent</tt>, <tt>primary-weight</tt>, <tt>name</tt>, <tt>chdata</tt>, <tt>replacefrom</tt>, <tt>replacen</tt>).</li>
+    <li><tt>&lt;remove/&gt;</tt> — remove a record (attribute <tt>target</tt>).</li>
+  </ul>
+  <p>
+    Ordering among siblings is determined by <tt>primary-weight</tt> and, on
+    ties, by the secondary weight (RID comparison) as defined in XEP-0284. The
+    following examples use the root RID <tt>0</tt> from
+    <link url='#state-send'>Section 7.3</link>.
+  </p>
+
+  <section2 topic='Drawing a Path' anchor='edit-path'>
+    <p>
+      Freehand drawing creates a &lt;path/&gt; element and its attributes. Every
+      element that can be selected, transformed, reordered, grouped or deleted
+      SHOULD carry a unique <tt>id</tt> attribute.
+    </p>
+    <example caption='Drawing a red triangle'>
+      <![CDATA[
+<sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='8'>
+  <state>
+    <new rid='8' type='element' name='path' parent='0' primary-weight='1'/>
+    <new rid='9' type='attr' name='id' chdata='e1f2a3b4' parent='8'/>
+    <new rid='10' type='attr' name='d' chdata='M 100 100 L 300 100 L 200 300 Z' parent='8'/>
+    <new rid='11' type='attr' name='stroke' chdata='#ff0000' parent='8'/>
+    <new rid='12' type='attr' name='stroke-width' chdata='2' parent='8'/>
+    <new rid='13' type='attr' name='fill' chdata='none' parent='8'/>
+  </state>
+</sxe>
+]]></example>
+    <p>
+      Implementations MAY smooth freehand input by emitting SVG curve commands
+      (<tt>Q</tt>, <tt>C</tt>) in the <tt>d</tt> attribute.
+    </p>
+  </section2>
+
+  <section2 topic='Moving and Transforming an Element' anchor='edit-transform'>
+    <p>
+      Transformations are represented by the SVG <tt>transform</tt> attribute.
+      There is no separate move command: moving, rotating or scaling updates the
+      attribute record with a <tt>&lt;set/&gt;</tt>.
+    </p>
+    <example caption='Moving the path by 100 pixels down and to the right'>
+      <![CDATA[
+<sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='9'>
+  <state>
+    <new rid='14' type='attr' name='transform' chdata='matrix(1 0 0 1 100 100)' parent='8'/>
+  </state>
+</sxe>
+]]></example>
+    <example caption='Applying an additional rotation'>
+      <![CDATA[
+<sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='10'>
+  <state>
+    <set target='14' version='1' chdata='matrix(0.707 0.707 -0.707 0.707 100 100)'/>
+  </state>
+</sxe>
+]]></example>
+  </section2>
+
+  <section2 topic='Changing Style' anchor='edit-style'>
+    <example caption='Recolouring the path and thickening its stroke'>
+      <![CDATA[
+<sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='11'>
+  <state>
+    <set target='11' version='1' chdata='#0000ff'/>
+    <set target='12' version='1' chdata='6'/>
+  </state>
+</sxe>
+]]></example>
+    <p>
+      A partial replacement MAY use <tt>replacefrom</tt> and <tt>replacen</tt>.
+    </p>
+  </section2>
+
+  <section2 topic='Erasing an Element' anchor='edit-delete'>
+    <example caption='Erasing the path'>
+      <![CDATA[
+<sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='12'>
+  <state>
+    <remove target='8'/>
+  </state>
+</sxe>
+]]></example>
+    <p>RIDs of removed records MUST NOT be reused within the session.</p>
+  </section2>
+
+  <section2 topic='Grouping and Ungrouping' anchor='edit-group'>
+    <p>
+      Grouping creates a &lt;g/&gt; element and reparents the selected records
+      under it by changing their <tt>parent</tt> field.
+    </p>
+    <example caption='Grouping RID 8 with RID 20'>
+      <![CDATA[
+<sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='13'>
+  <state>
+    <new rid='30' type='element' name='g' parent='0' primary-weight='5'/>
+    <new rid='31' type='attr' name='id' chdata='e5c7d9e0' parent='30'/>
+    <set target='8' version='1' parent='30'/>
+    <set target='20' version='1' parent='30'/>
+  </state>
+</sxe>
+]]></example>
+    <p>
+      Ungrouping composes the group's <tt>transform</tt> into each child, moves
+      the children back to the group's parent, and removes the group.
+    </p>
+  </section2>
+
+  <section2 topic='Changing the Stacking Order' anchor='edit-zorder'>
+    <example caption='Bringing the path to the front'>
+      <![CDATA[
+<sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='14'>
+  <state>
+    <set target='8' version='2' primary-weight='9999'/>
+  </state>
+</sxe>
+]]></example>
+  </section2>
+
+  <section2 topic='Inserting an Image' anchor='edit-image'>
+    <p>
+      In the minimal profile, image data is embedded as a <tt>data:</tt> URI in
+      the <tt>xlink:href</tt> attribute. The XLink namespace is
+      <tt>http://www.w3.org/1999/xlink</tt>.
+    </p>
+    <example caption='Inserting an embedded PNG image'>
+      <![CDATA[
+<sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='15'>
+  <state>
+    <new rid='40' type='element' name='image' parent='0' primary-weight='6'/>
+    <new rid='41' type='attr' name='x' chdata='120' parent='40'/>
+    <new rid='42' type='attr' name='y' chdata='80' parent='40'/>
+    <new rid='43' type='attr' name='width' chdata='64' parent='40'/>
+    <new rid='44' type='attr' name='height' chdata='64' parent='40'/>
+    <new rid='45' type='attr' ns='http://www.w3.org/1999/xlink' name='xlink:href'
+         chdata='data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...' parent='40'/>
+  </state>
+</sxe>
+]]></example>
+  </section2>
+
+  <section2 topic='Resizing the Canvas' anchor='edit-viewbox'>
+    <example caption='Enlarging the canvas'>
+      <![CDATA[
+<sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='16'>
+  <state>
+    <set target='3' version='1' chdata='0 0 1024 768'/>
+  </state>
+</sxe>
+]]></example>
+  </section2>
+
+  <section2 topic='Clearing the Canvas' anchor='edit-clear'>
+    <p>
+      There is no clear command; clearing removes every drawable child of the
+      root &lt;svg/&gt;. Metadata (&lt;title/&gt;, &lt;desc/&gt;, &lt;defs/&gt;)
+      SHOULD be preserved.
+    </p>
+    <example caption='Clearing the canvas'>
+      <![CDATA[
+<sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='17'>
+  <state>
+    <remove target='8'/>
+    <remove target='20'/>
+    <remove target='40'/>
+  </state>
+</sxe>
+]]></example>
+  </section2>
+</section1>
+
+<section1 topic='Multi-User Whiteboards' anchor='muc'>
+  <p>
+    A whiteboard MAY be hosted in a Multi-User Chat room (XEP-0045) or a
+    dedicated component. The host is the room's bare JID; SXE payloads are sent
+    as <tt>type='groupchat'</tt> messages to that JID and are reflected to all
+    occupants. Jingle session management is likewise performed with the room as
+    the peer.
+  </p>
+  <p>
+    Broadcast presence within the room MAY advertise a session using the SXE
+    presence element defined in XEP-0284:
+  </p>
+  <example caption='Advertising a whiteboard session in presence'>
+    <![CDATA[
+<presence from='laertes@shakespeare.lit/castle'
+          to='chamber@conference.shakespeare.lit/laertes'>
+  <sxe xmlns='urn:xmpp:sxe:0' session='851ba2' name='Chamber Whiteboard'/>
+</presence>
+]]></example>
+</section1>
+
+<section1 topic='Initial Document' anchor='document'>
+  <p>
+    When a session is started without a user-supplied document, the initiator
+    MUST initialize it to the empty whiteboard document below.
+  </p>
+  <example caption='Empty whiteboard document (prolog omitted)'>
+    <![CDATA[
+<svg xmlns='http://www.w3.org/2000/svg'
+     version='1.2'
+     viewBox='0 0 600 400'
+     baseProfile='tiny'/>
+]]></example>
+  <ul>
+    <li>The root element MUST be &lt;svg/&gt; in <tt>http://www.w3.org/2000/svg</tt>.</li>
+    <li>The canvas MUST be described by the <tt>viewBox</tt> attribute.</li>
+    <li>SVG Tiny 1.2 (or a compatible profile) SHOULD be used; <tt>baseProfile='tiny'</tt> is RECOMMENDED.</li>
+    <li>Drawable content consists of SVG elements such as &lt;path/&gt;, &lt;image/&gt;, &lt;g/&gt; and basic shapes.</li>
+    <li>Metadata (&lt;title/&gt;, &lt;desc/&gt;, &lt;defs/&gt;) MUST NOT be treated as drawable items and SHOULD be preserved.</li>
+  </ul>
+</section1>
+
+<section1 topic='Formal Definition' anchor='def'>
+  <p>
+    The synchronization vocabulary, the record model and the conflict-handling
+    model are defined by XEP-0284 and are not repeated here. This section defines
+    only the application type and the document profile.
+  </p>
+
+  <section2 topic='Application Type' anchor='def-app'>
+    <table caption='Properties of the application type'>
+      <tr><th>Property</th><th>Value</th></tr>
+      <tr><td>Jingle application type namespace</td><td><tt>urn:xmpp:jingle:apps:svg-whiteboard:0</tt></td></tr>
+      <tr><td>Jingle transport</td><td><tt>urn:xmpp:jingle:transports:sxe</tt></td></tr>
+      <tr><td>Shared document</td><td>An SVG document (namespace <tt>http://www.w3.org/2000/svg</tt>)</td></tr>
+      <tr><td><tt>&lt;description/&gt;</tt> content</td><td>Empty in the minimal profile</td></tr>
+    </table>
+  </section2>
+
+  <section2 topic='XML Schema' anchor='def-schema'>
+    <p>
+      The shared document SHOULD conform to the following schema, which restricts
+      it to the primitives used by whiteboards.
+    </p>
+    <code><![CDATA[
+<?xml version='1.0' encoding='UTF-8'?>
+<xs:schema
+    xmlns:xs='http://www.w3.org/2001/XMLSchema'
+    targetNamespace='http://www.w3.org/2000/svg'
+    xmlns='http://www.w3.org/2000/svg'
+    elementFormDefault='qualified'>
+  <xs:element name='svg'>
+    <xs:complexType>
+      <xs:choice minOccurs='0' maxOccurs='unbounded'>
+        <xs:any namespace='##targetNamespace' processContents='lax'/>
+      </xs:choice>
+      <xs:attribute name='version' type='xs:string'/>
+      <xs:attribute name='baseProfile' type='xs:string'/>
+      <xs:attribute name='viewBox' type='xs:string' use='required'/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name='path'>
+    <xs:complexType>
+      <xs:attribute name='d' type='xs:string' use='required'/>
+      <xs:attributeGroup ref='presentation'/>
+      <xs:attribute name='transform' type='xs:string'/>
+      <xs:attribute name='id' type='xs:ID'/>
+    </xs:complexType>
+  </xs:element>
+  <xs:element name='image'>
+    <xs:complexType>
+      <xs:attribute name='x' type='xs:string' use='required'/>
+      <xs:attribute name='y' type='xs:string' use='required'/>
+      <xs:attribute name='width' type='xs:string' use='required'/>
+      <xs:attribute name='height' type='xs:string' use='required'/>
+      <xs:attribute name='href' type='xs:anyURI' use='required'/>
+      <xs:attribute name='transform' type='xs:string'/>
+      <xs:attribute name='id' type='xs:ID'/>
+    </xs:complexType>
+  </xs:element>
+  <xs:attributeGroup name='presentation'>
+    <xs:attribute name='stroke' type='xs:string'/>
+    <xs:attribute name='stroke-width' type='xs:string'/>
+    <xs:attribute name='stroke-linecap' type='xs:string'/>
+    <xs:attribute name='stroke-linejoin' type='xs:string'/>
+    <xs:attribute name='fill' type='xs:string'/>
+    <xs:attribute name='fill-opacity' type='xs:string'/>
+    <xs:attribute name='stroke-opacity' type='xs:string'/>
+    <xs:attribute name='opacity' type='xs:string'/>
+  </xs:attributeGroup>
+</xs:schema>
+]]></code>
+  </section2>
+
+  <section2 topic='Grammar of the d Attribute' anchor='def-grammar'>
+    <p>
+      The <tt>d</tt> attribute uses the full SVG path data grammar (from the SVG
+      specification); the supported commands include moveto (<tt>M</tt>/<tt>m</tt>),
+      lineto (<tt>L</tt>/<tt>l</tt>), horizontal and vertical lineto
+      (<tt>H</tt>/<tt>h</tt>, <tt>V</tt>/<tt>v</tt>), closepath (<tt>Z</tt>/<tt>z</tt>),
+      cubic and smooth cubic curves (<tt>C</tt>/<tt>c</tt>, <tt>S</tt>/<tt>s</tt>),
+      quadratic and smooth quadratic curves (<tt>Q</tt>/<tt>q</tt>, <tt>T</tt>/<tt>t</tt>),
+      and elliptical arcs (<tt>A</tt>/<tt>a</tt>). The <tt>transform</tt>
+      attribute uses the SVG transform-list grammar.
+    </p>
+  </section2>
+</section1>
+
+<section1 topic='Security Considerations' anchor='security'>
+  <ul>
+    <li>Embedded <tt>data:</tt> images can be large; implementations SHOULD enforce size and format limits.</li>
+    <li>Clients SHOULD render the shared document without fetching external resources.</li>
+    <li>Any participant may edit the document; access control is out of scope and may be provided by the host.</li>
+    <li>The XML prolog carried in the <tt>prolog</tt> attribute MUST be treated as untrusted input.</li>
+  </ul>
+</section1>
+
+<section1 topic='IANA Considerations' anchor='iana'>
+  <p>This document requires no interaction with the Internet Assigned Numbers Authority (IANA).</p>
+</section1>
+
+<section1 topic='XMPP Registrar Considerations' anchor='registrar'>
+  <p>
+    The Registrar is requested to register the application type
+    <tt>urn:xmpp:jingle:apps:svg-whiteboard:0</tt> in its registry of Jingle
+    application formats.
+  </p>
+  <code><![CDATA[
+<application>
+  <name>svg-whiteboard</name>
+  <desc>An SVG document collaboratively edited over Shared XML Editing (XEP-0284).</desc>
+  <transport>sxe</transport>
+  <doc>XEP-XXXX</doc>
+</application>
+]]></code>
+</section1>
+
+
+<section1 topic='Optional Extensions' anchor='extensions'>
+  <p>
+    The extended profile adds optional capabilities on top of the minimal
+    profile. All of them are negotiated through Service Discovery or Entity
+    Capabilities, so a minimal client can participate in the same session without
+    implementing them. The application type namespace is unchanged, and the
+    shared document always remains a complete, self-describing SVG document.
+  </p>
+
+  <section2 topic='Capability Discovery with Entity Capabilities' anchor='ext-caps'>
+    <p>
+      Implementations SHOULD use Entity Capabilities (XEP-0115) so that the
+      features listed in <link url='#disco'>Section 6</link> can be discovered
+      from presence without an explicit disco#info request.
+    </p>
+  </section2>
+
+  <section2 topic='Image References via HTTP File Upload' anchor='ext-upload'>
+    <p>
+      Instead of embedding large images as <tt>data:</tt> URIs, an implementation
+      MAY advertise HTTP File Upload (XEP-0363) and place the resulting URL in the
+      image's <tt>xlink:href</tt> attribute. The document remains self-describing
+      and the binary payload is not duplicated in every edit.
+    </p>
+    <example caption='An image referenced from an uploaded file'>
+      <![CDATA[
+<sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='20'>
+  <state>
+    <new rid='40' type='element' name='image' parent='0' primary-weight='6'/>
+    <new rid='41' type='attr' name='x' chdata='120' parent='40'/>
+    <new rid='42' type='attr' name='y' chdata='80' parent='40'/>
+    <new rid='43' type='attr' name='width' chdata='640' parent='40'/>
+    <new rid='44' type='attr' name='height' chdata='480' parent='40'/>
+    <new rid='45' type='attr' ns='http://www.w3.org/1999/xlink' name='xlink:href'
+         chdata='https://upload.shakespeare.lit/file/9f2c1a' parent='40'/>
+  </state>
+</sxe>
+]]></example>
+    <p>
+      Implementations MUST fall back to the inline <tt>data:</tt> URI of the
+      minimal profile when the peer does not support uploads or when the
+      referenced resource is not reachable.
+    </p>
+  </section2>
+
+  <section2 topic='Large Attachments via Jingle File Transfer' anchor='ext-ft'>
+    <p>
+      For very large images or other binary content, an implementation MAY use
+      Jingle File Transfer (XEP-0234) out of band and then reference the received
+      content in <tt>xlink:href</tt>, or embed it as a <tt>data:</tt> URI once
+      received. The choice is local; the shared document always carries a
+      resolvable reference.
+    </p>
+  </section2>
+
+  <section2 topic='Initiating from an Existing Chat' anchor='ext-jmi'>
+    <p>
+      An implementation MAY use Jingle Message Initiation (XEP-0353) to propose a
+      whiteboard inside an existing chat, so that the recipient sees a proposal
+      and accepts with a single action instead of a full Jingle negotiation.
+    </p>
+  </section2>
+
+  <section2 topic='Negotiation and Fallback' anchor='ext-fallback'>
+    <ol>
+      <li>Determine the peer's features (Entity Capabilities or disco#info).</li>
+      <li>Start the session only if the peer advertises <tt>urn:xmpp:jingle:apps:svg-whiteboard:0</tt> and the SXE transport.</li>
+      <li>Use HTTP File Upload for images only if the peer advertises <tt>urn:xmpp:http:upload:0</tt>; otherwise embed the image as a <tt>data:</tt> URI.</li>
+      <li>If the peer supports none of the required features, do not start the session.</li>
+    </ol>
+  </section2>
+</section1>
+
+<section1 topic='Appendix: Capability Matrix' anchor='appendix-matrix'>
+  <table caption='Minimal versus extended capabilities'>
+    <tr><th>Capability</th><th>Minimal</th><th>Extended</th></tr>
+    <tr><td>Jingle session management (XEP-0166)</td><td>REQUIRED</td><td>REQUIRED</td></tr>
+    <tr><td>Shared XML Editing (XEP-0284)</td><td>REQUIRED</td><td>REQUIRED</td></tr>
+    <tr><td>Multi-User Chat host (XEP-0045)</td><td>REQUIRED</td><td>REQUIRED</td></tr>
+    <tr><td>Inline <tt>data:</tt> images</td><td>REQUIRED</td><td>REQUIRED (fallback)</td></tr>
+    <tr><td>Entity Capabilities (XEP-0115)</td><td>—</td><td>RECOMMENDED</td></tr>
+    <tr><td>HTTP File Upload (XEP-0363)</td><td>—</td><td>OPTIONAL</td></tr>
+    <tr><td>Jingle File Transfer (XEP-0234)</td><td>—</td><td>OPTIONAL</td></tr>
+    <tr><td>Jingle Message Initiation (XEP-0353)</td><td>—</td><td>OPTIONAL</td></tr>
+  </table>
+</section1>
+
+<section1 topic='Relationship to Other Specifications' anchor='relationship'>
+  <table caption='Comparison of the related whiteboarding approaches'>
+    <tr><th>Aspect</th><th>XEP-0113</th><th>Deprecated Psi profile</th><th>This profile</th></tr>
+    <tr><td>Session management</td><td>None (plain messages)</td><td>SXE <tt>&lt;negotiation/&gt;</tt></td><td>Jingle (XEP-0166)</td></tr>
+    <tr><td>Synchronization</td><td>Commands in <tt>swb</tt></td><td>SXE in <tt>http://jabber.org/protocol/sxe</tt></td><td>SXE (XEP-0284)</td></tr>
+    <tr><td>Document</td><td>Restricted path commands</td><td>SVG</td><td>SVG</td></tr>
+    <tr><td>Extensibility</td><td>None</td><td>High</td><td>High</td></tr>
+  </table>
+  <p>
+    A client that supported the deprecated Psi profile must be updated to the
+    Jingle-based session management and the <tt>urn:xmpp:sxe:0</tt> namespace; the
+    record model and edit elements are otherwise the same as in XEP-0284.
+  </p>
+</section1>
+
+<section1 topic='Acknowledgements' anchor='ack'>
+  <p>
+    The whiteboard model is derived from the whiteboarding and Shared XML Editing
+    work of Joonas Govenius in the Psi instant messaging client. This profile
+    modernizes that work onto the standardized XEP-0284 framework.
+  </p>
+</section1>
+</xep>
