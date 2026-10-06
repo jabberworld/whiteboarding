@@ -728,19 +728,6 @@
   </section2>
 </section1>
 
-<section1 topic='Appendix: Capability Matrix' anchor='appendix-matrix'>
-  <table caption='Minimal versus extended capabilities'>
-    <tr><th>Capability</th><th>Minimal</th><th>Extended</th></tr>
-    <tr><td>Jingle session management (XEP-0166)</td><td>REQUIRED</td><td>REQUIRED</td></tr>
-    <tr><td>Shared XML Editing (XEP-0284)</td><td>REQUIRED</td><td>REQUIRED</td></tr>
-    <tr><td>Multi-User Chat host (XEP-0045)</td><td>REQUIRED</td><td>REQUIRED</td></tr>
-    <tr><td>Inline <tt>data:</tt> images</td><td>REQUIRED</td><td>REQUIRED (fallback)</td></tr>
-    <tr><td>Entity Capabilities (XEP-0115)</td><td>—</td><td>RECOMMENDED</td></tr>
-    <tr><td>HTTP File Upload (XEP-0363)</td><td>—</td><td>OPTIONAL</td></tr>
-    <tr><td>Jingle File Transfer (XEP-0234)</td><td>—</td><td>OPTIONAL</td></tr>
-    <tr><td>Jingle Message Initiation (XEP-0353)</td><td>—</td><td>OPTIONAL</td></tr>
-  </table>
-</section1>
 
 <section1 topic='Relationship to Other Specifications' anchor='relationship'>
   <table caption='Comparison of the related whiteboarding approaches'>
@@ -764,4 +751,18 @@
     modernizes that work onto the standardized XEP-0284 framework.
   </p>
 </section1>
+<section1 topic='Appendix: Capability Matrix' anchor='appendix-matrix'>
+  <table caption='Minimal versus extended capabilities'>
+    <tr><th>Capability</th><th>Minimal</th><th>Extended</th></tr>
+    <tr><td>Jingle session management (XEP-0166)</td><td>REQUIRED</td><td>REQUIRED</td></tr>
+    <tr><td>Shared XML Editing (XEP-0284)</td><td>REQUIRED</td><td>REQUIRED</td></tr>
+    <tr><td>Multi-User Chat host (XEP-0045)</td><td>REQUIRED</td><td>REQUIRED</td></tr>
+    <tr><td>Inline <tt>data:</tt> images</td><td>REQUIRED</td><td>REQUIRED (fallback)</td></tr>
+    <tr><td>Entity Capabilities (XEP-0115)</td><td>—</td><td>RECOMMENDED</td></tr>
+    <tr><td>HTTP File Upload (XEP-0363)</td><td>—</td><td>OPTIONAL</td></tr>
+    <tr><td>Jingle File Transfer (XEP-0234)</td><td>—</td><td>OPTIONAL</td></tr>
+    <tr><td>Jingle Message Initiation (XEP-0353)</td><td>—</td><td>OPTIONAL</td></tr>
+  </table>
+</section1>
+
 </xep>

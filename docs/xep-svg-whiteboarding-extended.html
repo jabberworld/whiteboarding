@@ -85,9 +85,9 @@ a{color:#1a5fb4}
 <li><a href="#ext-ft">15.3 Large Attachments via Jingle File Transfer</a></li>
 <li><a href="#ext-jmi">15.4 Initiating from an Existing Chat</a></li>
 <li><a href="#ext-fallback">15.5 Negotiation and Fallback</a></li>
-<li><a href="#appendix-matrix">16 Appendix: Capability Matrix</a></li>
-<li><a href="#relationship">17 Relationship to Other Specifications</a></li>
-<li><a href="#ack">18 Acknowledgements</a></li>
+<li><a href="#relationship">16 Relationship to Other Specifications</a></li>
+<li><a href="#ack">17 Acknowledgements</a></li>
+<li><a href="#appendix-matrix">18 Appendix: Capability Matrix</a></li>
 </ol></nav>
 <h2 id="intro">1 Introduction</h2><p>
     XEP-0113 defines a minimal, message-based whiteboarding protocol built on a
@@ -501,15 +501,15 @@ a{color:#1a5fb4}
       whiteboard inside an existing chat, so that the recipient sees a proposal
       and accepts with a single action instead of a full Jingle negotiation.
     </p><h3 id="ext-fallback">15.5 Negotiation and Fallback</h3><ol><li>Determine the peer&#x27;s features (Entity Capabilities or disco#info).</li><li>Start the session only if the peer advertises <code>urn:xmpp:jingle:apps:svg-whiteboard:0</code> and the SXE transport.</li><li>Use HTTP File Upload for images only if the peer advertises <code>urn:xmpp:http:upload:0</code>; otherwise embed the image as a <code>data:</code> URI.</li><li>If the peer supports none of the required features, do not start the session.</li></ol>
-<h2 id="appendix-matrix">16 Appendix: Capability Matrix</h2><table><tr><th>Capability</th><th>Minimal</th><th>Extended</th></tr><tr><td>Jingle session management (XEP-0166)</td><td>REQUIRED</td><td>REQUIRED</td></tr><tr><td>Shared XML Editing (XEP-0284)</td><td>REQUIRED</td><td>REQUIRED</td></tr><tr><td>Multi-User Chat host (XEP-0045)</td><td>REQUIRED</td><td>REQUIRED</td></tr><tr><td>Inline <code>data:</code> images</td><td>REQUIRED</td><td>REQUIRED (fallback)</td></tr><tr><td>Entity Capabilities (XEP-0115)</td><td>—</td><td>RECOMMENDED</td></tr><tr><td>HTTP File Upload (XEP-0363)</td><td>—</td><td>OPTIONAL</td></tr><tr><td>Jingle File Transfer (XEP-0234)</td><td>—</td><td>OPTIONAL</td></tr><tr><td>Jingle Message Initiation (XEP-0353)</td><td>—</td><td>OPTIONAL</td></tr></table>
-<h2 id="relationship">17 Relationship to Other Specifications</h2><table><tr><th>Aspect</th><th>XEP-0113</th><th>Deprecated Psi profile</th><th>This profile</th></tr><tr><td>Session management</td><td>None (plain messages)</td><td>SXE <code>&lt;negotiation/&gt;</code></td><td>Jingle (XEP-0166)</td></tr><tr><td>Synchronization</td><td>Commands in <code>swb</code></td><td>SXE in <code>http://jabber.org/protocol/sxe</code></td><td>SXE (XEP-0284)</td></tr><tr><td>Document</td><td>Restricted path commands</td><td>SVG</td><td>SVG</td></tr><tr><td>Extensibility</td><td>None</td><td>High</td><td>High</td></tr></table><p>
+<h2 id="relationship">16 Relationship to Other Specifications</h2><table><tr><th>Aspect</th><th>XEP-0113</th><th>Deprecated Psi profile</th><th>This profile</th></tr><tr><td>Session management</td><td>None (plain messages)</td><td>SXE <code>&lt;negotiation/&gt;</code></td><td>Jingle (XEP-0166)</td></tr><tr><td>Synchronization</td><td>Commands in <code>swb</code></td><td>SXE in <code>http://jabber.org/protocol/sxe</code></td><td>SXE (XEP-0284)</td></tr><tr><td>Document</td><td>Restricted path commands</td><td>SVG</td><td>SVG</td></tr><tr><td>Extensibility</td><td>None</td><td>High</td><td>High</td></tr></table><p>
     A client that supported the deprecated Psi profile must be updated to the
     Jingle-based session management and the <code>urn:xmpp:sxe:0</code> namespace; the
     record model and edit elements are otherwise the same as in XEP-0284.
   </p>
-<h2 id="ack">18 Acknowledgements</h2><p>
+<h2 id="ack">17 Acknowledgements</h2><p>
     The whiteboard model is derived from the whiteboarding and Shared XML Editing
     work of Joonas Govenius in the Psi instant messaging client. This profile
     modernizes that work onto the standardized XEP-0284 framework.
   </p>
+<h2 id="appendix-matrix">18 Appendix: Capability Matrix</h2><table><tr><th>Capability</th><th>Minimal</th><th>Extended</th></tr><tr><td>Jingle session management (XEP-0166)</td><td>REQUIRED</td><td>REQUIRED</td></tr><tr><td>Shared XML Editing (XEP-0284)</td><td>REQUIRED</td><td>REQUIRED</td></tr><tr><td>Multi-User Chat host (XEP-0045)</td><td>REQUIRED</td><td>REQUIRED</td></tr><tr><td>Inline <code>data:</code> images</td><td>REQUIRED</td><td>REQUIRED (fallback)</td></tr><tr><td>Entity Capabilities (XEP-0115)</td><td>—</td><td>RECOMMENDED</td></tr><tr><td>HTTP File Upload (XEP-0363)</td><td>—</td><td>OPTIONAL</td></tr><tr><td>Jingle File Transfer (XEP-0234)</td><td>—</td><td>OPTIONAL</td></tr><tr><td>Jingle Message Initiation (XEP-0353)</td><td>—</td><td>OPTIONAL</td></tr></table>
 </body></html>
