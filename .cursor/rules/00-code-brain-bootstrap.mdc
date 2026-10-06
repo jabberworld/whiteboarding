@@ -1,0 +1,9 @@
+---
+description: "Re-create Code Brain rules if they are missing."
+alwaysApply: true
+---
+
+# Code Brain bootstrap
+
+1. At session start, call `ensure_code_brain_rule`.
+2. If the tool restores files, ask the user to reload the IDE window.

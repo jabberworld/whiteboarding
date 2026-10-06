@@ -1,0 +1,202 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE xep SYSTEM 'xep.dtd' [
+  <!ENTITY % ents SYSTEM 'xep.ent'>
+%ents;
+]>
+<?xml-stylesheet type='text/xsl' href='xep.xsl'?>
+<xep>
+<header>
+  <title>Collaborative SVG Whiteboarding</title>
+  <abstract>
+    This specification defines a session-based collaborative whiteboarding
+    protocol that uses an SVG document as the shared canvas. It is designed to be
+    functionally compatible with the whiteboarding model used by the Psi Jabber
+    client, while being described explicitly at the XMPP protocol level.
+  </abstract>
+  <legal>
+    <copyright>This XMPP Extension Protocol is copyright © 1999 – 2026 by the XMPP Standards Foundation (XSF).</copyright>
+    <permissions>Permission is hereby granted, free of charge, to any person obtaining a copy of this specification (the "Specification"), to make use of the Specification without restriction, including without limitation the rights to implement the Specification in a software program, deploy the Specification in a network service, and copy, modify, merge, publish, translate, distribute, sublicense, or sell copies of the Specification, and to permit persons to whom the Specification is furnished to do so, subject to the condition that the foregoing copyright notice and this permission notice shall be included in all copies or substantial portions of the Specification. Unless separate permission is granted, modified works that are redistributed shall not contain misleading information regarding the authors, title, number, or publisher of the Specification, and shall not claim endorsement of the modified works by the authors, any organization or project to which the authors belong, or the XMPP Standards Foundation.</permissions>
+    <warranty>## NOTE WELL: This Specification is provided on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied, including, without limitation, any warranties or conditions of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE. ##</warranty>
+    <liability>In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, unless required by applicable law (such as deliberate and grossly negligent acts) or agreed to in writing, shall the XMPP Standards Foundation or any author of this Specification be liable for damages, including any direct, indirect, special, incidental, or consequential damages of any character arising from, out of, or in connection with the Specification or the implementation, deployment, or other use of the Specification (including but not limited to damages for loss of goodwill, work stoppage, computer failure or malfunction, or any and all other commercial damages or losses), even if the XMPP Standards Foundation or such author has been advised of the possibility of such damages.</liability>
+    <conformance>This XMPP Extension Protocol has been contributed in full conformance with the XSF's Intellectual Property Rights Policy (a copy of which can be found at &lt;https://xmpp.org/about/xsf/ipr-policy&gt; or obtained by writing to XMPP Standards Foundation, P.O. Box 787, Parker, CO 80134 USA).</conformance>
+  </legal>
+  <number>XXXX</number>
+  <status>Experimental</status>
+  <type>Standards Track</type>
+  <sig>Standards</sig>
+  <approver>Council</approver>
+  <dependencies>
+    <spec>XMPP Core</spec>
+    <spec>XEP-0214</spec>
+  </dependencies>
+  <supersedes/>
+  <supersededby/>
+  <shortname>svg-whiteboard</shortname>
+  <author>
+    <firstname>Based on analysis</firstname>
+    <surname>of Psi whiteboarding implementation</surname>
+    <email></email>
+    <jid></jid>
+  </author>
+  <revision>
+    <version>0.1</version>
+    <date>2026-10-04</date>
+    <initials>draft</initials>
+    <remark>Initial draft based on Psi whiteboarding analysis.</remark>
+  </revision>
+</header>
+  <revision>
+    <version>0.1</version>
+    <date>2026-10-04</date>
+    <initials>draft</initials>
+    <remark>Initial draft based on Psi whiteboarding analysis.</remark>
+  </revision>
+</header>
+
+<section1 topic='Introduction' anchor='intro'>
+  <p>
+    XEP-0113 ("Simple Whiteboarding") defines a minimal, message-based
+    whiteboarding protocol. While simple, it does not provide a shared document
+    model suitable for richer collaborative editing operations.
+  </p>
+  <p>
+    The Psi Jabber client implements a session-based collaborative whiteboarding
+    model where participants share a single SVG DOM document synchronized in
+    real time. This specification formalizes that model at the XMPP protocol level.
+  </p>
+</section1>
+
+<section1 topic='Requirements' anchor='reqs'>
+  <ol>
+    <li>Define feature namespace for SVG-based collaborative whiteboarding.</li>
+    <li>Specify session negotiation for a shared whiteboard document.</li>
+    <li>Define initial SVG document structure and conventions.</li>
+    <li>Specify canonical conventions for elements, identifiers, transforms and layering.</li>
+    <li>Describe DOM-level semantics for collaborative operations.</li>
+  </ol>
+</section1>
+
+<section1 topic='Terminology' anchor='terms'>
+  <p><strong>Shared SVG Document</strong>: A single SVG DOM tree (root &lt;svg&gt;) representing whiteboard state, synchronized across participants.</p>
+  <p><strong>Whiteboard Session</strong>: A negotiated collaborative session for editing the Shared SVG Document.</p>
+  <p><strong>Collaborative XML Editing</strong>: Mechanism to synchronize DOM mutations (e.g. XEP-0214).</p>
+  <p><strong>Whiteboard Element</strong>: SVG element representing drawable content (&lt;path&gt;, &lt;image&gt;, &lt;g&gt;).</p>
+  <p><strong>Canvas</strong>: Drawing area defined by &lt;svg&gt; viewBox.</p>
+</section1>
+
+<section1 topic='Feature Discovery' anchor='disco'>
+  <p>
+    Entities supporting this profile MUST advertise the feature
+    <tt>http://www.w3.org/2000/svg</tt> via Service Discovery (XEP-0030).
+    This feature URI serves as the capability marker for SVG-based collaborative
+    whiteboarding (consistent with the Psi implementation).
+  </p>
+</section1>
+
+<section1 topic='Session Negotiation and Lifecycle' anchor='session'>
+  <ol>
+    <li>The whiteboard session MUST be a collaborative XML editing session whose shared document is an SVG document with root &lt;svg xmlns="http://www.w3.org/2000/svg"&gt;.</li>
+    <li>Initiator MUST provide initial Shared SVG Document; if none provided, use Empty Whiteboard Document (Section 6).</li>
+    <li>Receivers of invitations offering this feature SHOULD be prompted to accept/decline.</li>
+    <li>All participants have edit rights by default (policy out of scope).</li>
+    <li>Session termination ends the collaborative editing session.</li>
+    <li>Peer departure is notified to remaining participants; document state persists.</li>
+  </ol>
+</section1>
+
+<section1 topic='Initial Document' anchor='initial-doc'>
+  <example caption='Empty Whiteboard Document'><![CDATA[
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg"
+     version="1.2"
+     viewBox="0 0 600 400"
+     baseProfile="tiny" />
+]]></example>
+  <ul>
+    <li>Root MUST be &lt;svg&gt; in namespace <tt>http://www.w3.org/2000/svg</tt>.</li>
+    <li>Canvas geometry expressed via <em>viewBox</em>.</li>
+    <li>SVG 1.1 Tiny/baseProfile="tiny" RECOMMENDED.</li>
+    <li>Non-drawable metadata (&lt;title&gt;, &lt;desc&gt;, &lt;defs&gt;) SHOULD be preserved if present.</li>
+  </ul>
+</section1>
+
+<section1 topic='SVG Conventions and Constraints' anchor='svg-conventions'>
+  <section2 topic='Namespaces' anchor='ns'>
+    <ul>
+      <li>SVG: <tt>http://www.w3.org/2000/svg</tt> (REQUIRED).</li>
+      <li>XLink (for &lt;image&gt;): <tt>http://www.w3.org/1999/xlink</tt> when <tt>xlink:href</tt> used.</li>
+    </ul>
+  </section2>
+  <section2 topic='Elements' anchor='elements'>
+    <ul>
+      <li><strong>&lt;path&gt;</strong>: path data MAY include M/m,L/l,Q/q,C/c for smooth strokes.</li>
+      <li><strong>&lt;image&gt;</strong>: SHOULD use data URI <tt>data:image/&lt;type&gt;;base64,&lt;data&gt;</tt> with <tt>x</tt>,<tt>y</tt>,<tt>width</tt>,<tt>height</tt>.</li>
+      <li><strong>&lt;g&gt;</strong>: grouping, MAY have <tt>transform</tt>.</li>
+      <li>Other SVG elements MAY appear and SHOULD be preserved if unknown.</li>
+    </ul>
+  </section2>
+  <section2 topic='Element Identity' anchor='ids'>
+    <ul>
+      <li>Every selectable/transformable/reorderable/groupable/deletable whiteboard element MUST have unique <tt>id</tt> attribute.</li>
+      <li><tt>id</tt> MUST be unique within document.</li>
+      <li>If missing, generating implementation MUST assign unique <tt>id</tt> before synchronizing.</li>
+      <li>RECOMMENDED: prefixed UUID (e.g. <tt>e</tt> + UUID).</li>
+      <li>Removed element IDs SHOULD NOT be reused to avoid ambiguity.</li>
+    </ul>
+  </section2>
+  <section2 topic='Styling' anchor='style'>
+    <p>Prefer SVG presentation attributes: <tt>stroke</tt>, <tt>stroke-width</tt>, <tt>stroke-linecap</tt>, <tt>stroke-linejoin</tt>, <tt>stroke-miterlimit</tt>, <tt>fill</tt>, <tt>fill-opacity</tt>, <tt>stroke-opacity</tt>, <tt>opacity</tt>.</p>
+  </section2>
+  <section2 topic='Transforms' anchor='transforms'>
+    <ul>
+      <li>Transformations expressed via SVG <tt>transform</tt> attribute (prefer <tt>matrix(...)</tt> for composed edits).</li>
+      <li>Interactive transforms update <tt>transform</tt> (no separate move command).</li>
+      <li>Ungrouping MUST compose group transform into child transforms before removing group.</li>
+    </ul>
+  </section2>
+  <section2 topic='Layering' anchor='zorder'>
+    <p>Z-order determined by DOM document order; later elements render on top. Reordering operations MUST be expressed as DOM node moves.</p>
+  </section2>
+  <section2 topic='Groups' anchor='groups'>
+    <ul>
+      <li>Group creates &lt;g id="..."&gt; (optional transform), inserts at appropriate position, moves selected nodes into group.</li>
+      <li>Ungroup moves children out (preserving stacking), composes group transform into children, removes group.</li>
+    </ul>
+  </section2>
+</section1>
+
+<section1 topic='Operation Semantics' anchor='ops'>
+  <table caption='Operation → DOM Mutation Mapping'>
+    <tr><th>Operation</th><th>DOM Effect</th></tr>
+    <tr><td>Draw path</td><td>Create &lt;path&gt; with unique id, set d/stroke/stroke-width and optional style attrs, insert at top Z-order.</td></tr>
+    <tr><td>Insert image</td><td>Create &lt;image&gt; with id, x,y,width,height, xlink:href (data URI), ensure xmlns:xlink, insert at top Z-order.</td></tr>
+    <tr><td>Transform (translate/rotate/scale)</td><td>Update transform attribute of affected element(s)/group.</td></tr>
+    <tr><td>Erase/Delete</td><td>Remove target node(s) from DOM.</td></tr>
+    <tr><td>Clear canvas</td><td>Remove all drawable child elements of root &lt;svg&gt; (preserve metadata/defs).</td></tr>
+    <tr><td>Group/Ungroup</td><td>As per Groups/Transforms sections.</td></tr>
+    <tr><td>Reorder</td><td>DOM reordering (move nodes) to achieve bring/send semantics.</td></tr>
+    <tr><td>Style changes</td><td>Update presentation attributes on targets.</td></tr>
+    <tr><td>Resize canvas</td><td>Update root &lt;svg&gt; viewBox.</td></tr>
+  </table>
+</section1>
+
+<section1 topic='Security Considerations' anchor='security'>
+  <ul>
+    <li>Large embedded images: implementations MAY impose size/format limits.</li>
+    <li>SVG rendering: sandbox RECOMMENDED; avoid fetching external resources (prefer data URIs).</li>
+    <li>Coalescing of high-frequency edits RECOMMENDED to manage bandwidth.</li>
+  </ul>
+</section1>
+
+<section1 topic='IANA Considerations' anchor='iana'>
+  <p>This document requires no interaction with IANA.</p>
+</section1>
+
+<section1 topic='XMPP Registrar Considerations' anchor='registrar'>
+  <p>
+    The feature URI <tt>http://www.w3.org/2000/svg</tt> is requested for registration
+    as the Protocol Feature for "Collaborative SVG Whiteboarding" per this specification.
+  </p>
+</section1>
+</xep>

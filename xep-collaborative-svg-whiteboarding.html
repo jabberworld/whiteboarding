@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Collaborative SVG Whiteboarding</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+    h1 { color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+    h2 { color: #444; margin-top: 30px; border-bottom: 1px solid #eee; }
+    h3 { color: #555; margin-top: 20px; }
+    pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }
+    table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f5f5f5; }
+    .abstract { font-style: italic; color: #666; background: #f9f9f9; padding: 15px; border-left: 4px solid #ccc; }
+    .example { margin: 20px 0; }
+    .example caption { font-weight: bold; margin-bottom: 5px; }
+  </style>
+</head>
+<body>
+<h1>Collaborative SVG Whiteboarding</h1>
+<div class="abstract">This specification defines a session-based collaborative whiteboarding protocol that uses an SVG document as the shared canvas. It is designed to be functionally compatible with the whiteboarding model used by the Psi Jabber client, while being described explicitly at the XMPP protocol level.</div>
+<h2>1. Introduction</h2>
+<p>XEP-0113 ("Simple Whiteboarding") defines a minimal, message-based whiteboarding protocol. While simple, it does not provide a shared document model suitable for richer collaborative editing operations.</p>
+<p>The Psi Jabber client implements a session-based collaborative whiteboarding model where participants share a single SVG DOM document synchronized in real time. This specification formalizes that model at the XMPP protocol level.</p>
+<h2>2. Requirements</h2>
+<h2>3. Terminology</h2>
+<p>Shared SVG Document: A single SVG DOM tree (root &lt;svg&gt;) representing whiteboard state, synchronized across participants.</p>
+<p>Whiteboard Session: A negotiated collaborative session for editing the Shared SVG Document.</p>
+<p>Collaborative XML Editing: Mechanism to synchronize DOM mutations (e.g. XEP-0214).</p>
+<p>Whiteboard Element: SVG element representing drawable content (&lt;path&gt;, &lt;image&gt;, &lt;g&gt;).</p>
+<p>Canvas: Drawing area defined by &lt;svg&gt; viewBox.</p>
+<h2>4. Feature Discovery</h2>
+<p>Entities supporting this profile MUST advertise the feature http://www.w3.org/2000/svg via Service Discovery (XEP-0030). This feature URI serves as the capability marker for SVG-based collaborative whiteboarding (consistent with the Psi implementation).</p>
+<h2>5. Session Negotiation and Lifecycle</h2>
+<h2>6. Initial Document</h2>
+<ul>
+<li>Root MUST be &lt;svg&gt; in namespace http://www.w3.org/2000/svg.</li>
+<li>Canvas geometry expressed via viewBox.</li>
+<li>SVG 1.1 Tiny/baseProfile="tiny" RECOMMENDED.</li>
+<li>Non-drawable metadata (&lt;title&gt;, &lt;desc&gt;, &lt;defs&gt;) SHOULD be preserved if present.</li>
+</ul>
+<div class="example">
+<caption>Empty Whiteboard Document</caption>
+<pre><code><![CDATA[
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg"
+     version="1.2"
+     viewBox="0 0 600 400"
+     baseProfile="tiny" />
+]]></code></pre>
+</div>
+<h2>7. SVG Conventions and Constraints</h2>
+<p>Prefer SVG presentation attributes: stroke, stroke-width, stroke-linecap, stroke-linejoin, stroke-miterlimit, fill, fill-opacity, stroke-opacity, opacity.</p>
+<p>Z-order determined by DOM document order; later elements render on top. Reordering operations MUST be expressed as DOM node moves.</p>
+<ul>
+<li>SVG: http://www.w3.org/2000/svg (REQUIRED).</li>
+<li>XLink (for &lt;image&gt;): http://www.w3.org/1999/xlink when xlink:href used.</li>
+</ul>
+<ul>
+<li>&lt;path&gt;: path data MAY include M/m,L/l,Q/q,C/c for smooth strokes.</li>
+<li>&lt;image&gt;: SHOULD use data URI data:image/&lt;type&gt;;base64,&lt;data&gt; with x,y,width,height.</li>
+<li>&lt;g&gt;: grouping, MAY have transform.</li>
+<li>Other SVG elements MAY appear and SHOULD be preserved if unknown.</li>
+</ul>
+<ul>
+<li>Every selectable/transformable/reorderable/groupable/deletable whiteboard element MUST have unique id attribute.</li>
+<li>id MUST be unique within document.</li>
+<li>If missing, generating implementation MUST assign unique id before synchronizing.</li>
+<li>RECOMMENDED: prefixed UUID (e.g. e + UUID).</li>
+<li>Removed element IDs SHOULD NOT be reused to avoid ambiguity.</li>
+</ul>
+<ul>
+<li>Transformations expressed via SVG transform attribute (prefer matrix(...) for composed edits).</li>
+<li>Interactive transforms update transform (no separate move command).</li>
+<li>Ungrouping MUST compose group transform into child transforms before removing group.</li>
+</ul>
+<ul>
+<li>Group creates &lt;g id="..."&gt; (optional transform), inserts at appropriate position, moves selected nodes into group.</li>
+<li>Ungroup moves children out (preserving stacking), composes group transform into children, removes group.</li>
+</ul>
+<h2>8. Operation Semantics</h2>
+<table>
+<tr><th>Operation</th><th>DOM Effect</th></tr>
+<tr><td>Draw path</td><td>Create &lt;path&gt; with unique id, set d/stroke/stroke-width and optional style attrs, insert at top Z-order.</td></tr>
+<tr><td>Insert image</td><td>Create &lt;image&gt; with id, x,y,width,height, xlink:href (data URI), ensure xmlns:xlink, insert at top Z-order.</td></tr>
+<tr><td>Transform (translate/rotate/scale)</td><td>Update transform attribute of affected element(s)/group.</td></tr>
+<tr><td>Erase/Delete</td><td>Remove target node(s) from DOM.</td></tr>
+<tr><td>Clear canvas</td><td>Remove all drawable child elements of root &lt;svg&gt; (preserve metadata/defs).</td></tr>
+<tr><td>Group/Ungroup</td><td>As per Groups/Transforms sections.</td></tr>
+<tr><td>Reorder</td><td>DOM reordering (move nodes) to achieve bring/send semantics.</td></tr>
+<tr><td>Style changes</td><td>Update presentation attributes on targets.</td></tr>
+<tr><td>Resize canvas</td><td>Update root &lt;svg&gt; viewBox.</td></tr>
+</table>
+<h2>9. Security Considerations</h2>
+<ul>
+<li>Large embedded images: implementations MAY impose size/format limits.</li>
+<li>SVG rendering: sandbox RECOMMENDED; avoid fetching external resources (prefer data URIs).</li>
+<li>Coalescing of high-frequency edits RECOMMENDED to manage bandwidth.</li>
+</ul>
+<h2>10. IANA Considerations</h2>
+<p>This document requires no interaction with IANA.</p>
+<h2>11. XMPP Registrar Considerations</h2>
+<p>The feature URI http://www.w3.org/2000/svg is requested for registration as the Protocol Feature for "Collaborative SVG Whiteboarding" per this specification.</p>
+</body></html>

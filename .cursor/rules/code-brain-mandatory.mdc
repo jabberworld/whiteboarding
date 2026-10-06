@@ -1,0 +1,13 @@
+---
+description: "When Code Brain MCP is loaded, use it for reasoning and planning in this project."
+alwaysApply: true
+---
+
+# Code Brain MCP - Mandatory
+
+- Start substantive tasks with `start_task(runIntake=true)` or `neural_sync`.
+- Use `agent_plan` before `agent_code` for chunk and deep work.
+- Use `memory_retrieve` at intake and `memory_store` at task end.
+- Use `docs_resolve_id` and `docs_query` before reasoning about unfamiliar libraries.
+- Use `uncertainty_guard` before storing final conclusions.
+- Disable duplicate MCPs with `get_superseded_mcps`.
