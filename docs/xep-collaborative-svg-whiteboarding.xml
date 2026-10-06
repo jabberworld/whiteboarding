@@ -8,12 +8,16 @@
 <header>
   <title>Collaborative SVG Whiteboarding over Shared XML Editing</title>
   <abstract>
+    DEPRECATED. This draft describes the Psi-native (pre-standardization) SXE
+    whiteboarding profile and is retained for historical reference only. It is
+    superseded by the standards-based profiles xep-svg-whiteboarding-minimal.xml
+    and xep-svg-whiteboarding-extended.xml, which use Jingle (XEP-0166) and
+    Shared XML Editing (XEP-0284); new implementations MUST NOT use this profile.
     This specification defines an SVG-based collaborative whiteboarding profile
     that is transported using Shared XML Editing (SXE). It formalizes, at the XMPP
     protocol level, the whiteboarding model implemented by the Psi instant
     messaging client: a shared SVG document that participants edit collaboratively
-    and synchronize through SXE records. The specification is intended to be
-    sufficiently detailed that an independent client can interoperate with Psi.
+    and synchronize through SXE records.
   </abstract>
   <legal>
     <copyright>This XMPP Extension Protocol is copyright © 1999 – 2026 by the XMPP Standards Foundation (XSF).</copyright>
@@ -51,6 +55,14 @@
 </header>
 
 <section1 topic='Introduction' anchor='intro'>
+  <p>
+    <strong>Deprecation notice:</strong> this draft documents the deprecated
+    Psi-native SXE profile (namespace <tt>http://jabber.org/protocol/sxe</tt> and
+    a custom &lt;negotiation/&gt; vocabulary). It is superseded by
+    <tt>xep-svg-whiteboarding-minimal.xml</tt> and
+    <tt>xep-svg-whiteboarding-extended.xml</tt>, which use Jingle (XEP-0166) and
+    Shared XML Editing (XEP-0284). See <tt>SVG_WHITEBOARD_VARIANTS.md</tt>.
+  </p>
   <p>
     <span class='ref'>XEP-0113: Simple Whiteboarding</span> defines a deliberately
     minimal whiteboarding protocol: a &lt;path/&gt; element carrying a restricted

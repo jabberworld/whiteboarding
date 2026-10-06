@@ -1,5 +1,7 @@
 # Подробное сравнение реализации whiteboarding в Psi с XEP-0113: Simple Whiteboarding
 
+> **Статус:** описанный здесь профиль Psi-native (`http://jabber.org/protocol/sxe`, кастомный `<negotiation>`, ранняя редакция SXE) — **deprecated**. Новый стандарт, построенный на Jingle (XEP-0166) и XEP-0284, описан в `xep-svg-whiteboarding-minimal.xml` / `xep-svg-whiteboarding-extended.xml`; нормативные правила — в `WHITEBOARD_PROFILE.md`; обзор вариантов и миграции — в `SVG_WHITEBOARD_VARIANTS.md`. Этот документ сохранён как сравнительный анализ и историческая справка.
+
 ## Содержание
 
 - [1. Введение](#1-введение)
@@ -47,14 +49,14 @@ XEP-0113 (v0.2 от 2003-09-07, статус Deferred, тип Informational) о�
 
 | Класс/Модуль | Файл | Назначение |
 |---|---|---|
-| **WbManager** | [`wbmanager.h`](wbmanager.h), [`wbmanager.cpp`](wbmanager.cpp) | Менеджер диалогов доски. Слушает SXE-сессии, создаёт диалоги при согласовании сессии, обрабатывает приглашения, предоставляет API для открытия доски. |
-| **WbDlg** | [`wbdlg.h`](wbdlg.h), [`wbdlg.cpp`](wbdlg.cpp) | Диалоговое окно сессии доски (`AdvancedWidget`). Содержит `WbWidget`, тулбар с режимами, выбором цвета/заливки/толщины, кнопки сохранения/очистки/завершения сессии. |
-| **WbWidget** | [`wbwidget.h`](wbwidget.h), [`wbwidget.cpp`](wbwidget.cpp) | Основной виджет визуализации и редактирования. Обрабатывает пользовательский ввод (мышь), создаёт временные элементы при рисовании, управляет режимами редактирования, координирует синхронизацию с SXE. |
-| **WbScene** | [`wbscene.h`](wbscene.h), [`wbscene.cpp`](wbscene.cpp) | Наследник `QGraphicsScene`. Управляет элементами на сцене, реализует группировку/разгруппировку, управление порядком слоёв, регенерацию трансформаций. |
-| **WbItem** | [`wbitem.h`](wbitem.h), [`wbitem.cpp`](wbitem.cpp) | Представляет существующий SVG-элемент на сцене (`QGraphicsSvgItem`). Обрабатывает трансформации, контекстное меню, синхронизирует изменения обратно в DOM через SXE. |
-| **WbNewItem** | [`wbnewitem.h`](wbnewitem.h), [`wbnewitem.cpp`](wbnewitem.cpp) | Базовый класс для временных элементов, создаваемых в процессе рисования (до фиксации в документ). |
-| **WbNewPath** | [`wbnewpath.h`](wbnewpath.h), [`wbnewpath.cpp`](wbnewpath.cpp) | Временный элемент для свободного рисования (path). Генерирует сглаженные кривые (`QPainterPath::quadTo`), сериализуется в SVG `<path>`. |
-| **WbNewImage** | [`wbnewimage.h`](wbnewimage.h), [`wbnewimage.cpp`](wbnewimage.cpp) | Временный элемент для вставки изображения. Кодирует изображение в data URI (base64) при сериализации. |
+| **WbManager** | [`wbmanager.h`](../psi-whiteboard/wbmanager.h), [`wbmanager.cpp`](../psi-whiteboard/wbmanager.cpp) | Менеджер диалогов доски. Слушает SXE-сессии, создаёт диалоги при согласовании сессии, обрабатывает приглашения, предоставляет API для открытия доски. |
+| **WbDlg** | [`wbdlg.h`](../psi-whiteboard/wbdlg.h), [`wbdlg.cpp`](../psi-whiteboard/wbdlg.cpp) | Диалоговое окно сессии доски (`AdvancedWidget`). Содержит `WbWidget`, тулбар с режимами, выбором цвета/заливки/толщины, кнопки сохранения/очистки/завершения сессии. |
+| **WbWidget** | [`wbwidget.h`](../psi-whiteboard/wbwidget.h), [`wbwidget.cpp`](../psi-whiteboard/wbwidget.cpp) | Основной виджет визуализации и редактирования. Обрабатывает пользовательский ввод (мышь), создаёт временные элементы при рисовании, управляет режимами редактирования, координирует синхронизацию с SXE. |
+| **WbScene** | [`wbscene.h`](../psi-whiteboard/wbscene.h), [`wbscene.cpp`](../psi-whiteboard/wbscene.cpp) | Наследник `QGraphicsScene`. Управляет элементами на сцене, реализует группировку/разгруппировку, управление порядком слоёв, регенерацию трансформаций. |
+| **WbItem** | [`wbitem.h`](../psi-whiteboard/wbitem.h), [`wbitem.cpp`](../psi-whiteboard/wbitem.cpp) | Представляет существующий SVG-элемент на сцене (`QGraphicsSvgItem`). Обрабатывает трансформации, контекстное меню, синхронизирует изменения обратно в DOM через SXE. |
+| **WbNewItem** | [`wbnewitem.h`](../psi-whiteboard/wbnewitem.h), [`wbnewitem.cpp`](../psi-whiteboard/wbnewitem.cpp) | Базовый класс для временных элементов, создаваемых в процессе рисования (до фиксации в документ). |
+| **WbNewPath** | [`wbnewpath.h`](../psi-whiteboard/wbnewpath.h), [`wbnewpath.cpp`](../psi-whiteboard/wbnewpath.cpp) | Временный элемент для свободного рисования (path). Генерирует сглаженные кривые (`QPainterPath::quadTo`), сериализуется в SVG `<path>`. |
+| **WbNewImage** | [`wbnewimage.h`](../psi-whiteboard/wbnewimage.h), [`wbnewimage.cpp`](../psi-whiteboard/wbnewimage.cpp) | Временный элемент для вставки изображения. Кодирует изображение в data URI (base64) при сериализации. |
 
 **Ключевая инфраструктура:** используются `SxeSession` и `SxeManager` из отдельного модуля `src/sxe` в дереве исходников Psi (в данной рабочей копии присутствует только модуль `whiteboarding/`; заголовки подключаются как `../sxe/...`). SXE реализует коллаборативное редактирование XML/DOM, а корневым документом является SVG.
 
@@ -163,10 +165,13 @@ Psi использует **раннюю (ProtoXEP) редакцию** SXE: се�
 
 ### 4.7 Формализованное описание профиля
 
-SVG-профиль поверх SXE (feature `http://www.w3.org/2000/svg`, конвенции документа, семантика операций, XSD/DTD) формализован в этом же репозитории:
+Описание профиля формализовано в этом же репозитории. Актуальный стандарт (на базе XEP-0284) и устаревший черновик:
 
-- [`xep-collaborative-svg-whiteboarding.xml`](xep-collaborative-svg-whiteboarding.xml) — черновик в стиле XEP;
-- [`xep-collaborative-svg-whiteboarding.html`](xep-collaborative-svg-whiteboarding.html) — отрендеренная версия;
+- [`xep-svg-whiteboarding-minimal.xml`](xep-svg-whiteboarding-minimal.xml) / [`.html`](xep-svg-whiteboarding-minimal.html) — **актуальный** минимальный профиль;
+- [`xep-svg-whiteboarding-extended.xml`](xep-svg-whiteboarding-extended.xml) / [`.html`](xep-svg-whiteboarding-extended.html) — **актуальный** расширенный профиль;
+- [`WHITEBOARD_PROFILE.md`](WHITEBOARD_PROFILE.md) — нормативные правила реализации;
+- [`SVG_WHITEBOARD_VARIANTS.md`](SVG_WHITEBOARD_VARIANTS.md) — обзор вариантов и миграция;
+- [`xep-collaborative-svg-whiteboarding.xml`](xep-collaborative-svg-whiteboarding.xml) / [`.html`](xep-collaborative-svg-whiteboarding.html) — **deprecated** черновик профиля Psi-native;
 - [`tools/xep2html.py`](tools/xep2html.py) — конвертер XML → HTML.
 
 ## 5. Сравнение транспорта и протокола синхронизации
@@ -335,14 +340,14 @@ XEP-0113 не определяет пользовательский интерф
 
 Для анализа были изучены следующие файлы модуля whiteboarding:
 
-- [`wbmanager.h`](wbmanager.h), [`wbmanager.cpp`](wbmanager.cpp) — менеджер сессий и диалогов;
-- [`wbdlg.h`](wbdlg.h), [`wbdlg.cpp`](wbdlg.cpp) — UI диалогового окна;
-- [`wbwidget.h`](wbwidget.h), [`wbwidget.cpp`](wbwidget.cpp) — основной виджет и логика редактирования;
-- [`wbscene.h`](wbscene.h), [`wbscene.cpp`](wbscene.cpp) — сцена, группировка, Z-order;
-- [`wbitem.h`](wbitem.h), [`wbitem.cpp`](wbitem.cpp) — элементы на сцене, трансформации;
-- [`wbnewitem.h`](wbnewitem.h), [`wbnewitem.cpp`](wbnewitem.cpp) — базовый класс временных элементов;
-- [`wbnewpath.h`](wbnewpath.h), [`wbnewpath.cpp`](wbnewpath.cpp) — рисование путей (freehand);
-- [`wbnewimage.h`](wbnewimage.h), [`wbnewimage.cpp`](wbnewimage.cpp) — вставка изображений;
+- [`wbmanager.h`](../psi-whiteboard/wbmanager.h), [`wbmanager.cpp`](../psi-whiteboard/wbmanager.cpp) — менеджер сессий и диалогов;
+- [`wbdlg.h`](../psi-whiteboard/wbdlg.h), [`wbdlg.cpp`](../psi-whiteboard/wbdlg.cpp) — UI диалогового окна;
+- [`wbwidget.h`](../psi-whiteboard/wbwidget.h), [`wbwidget.cpp`](../psi-whiteboard/wbwidget.cpp) — основной виджет и логика редактирования;
+- [`wbscene.h`](../psi-whiteboard/wbscene.h), [`wbscene.cpp`](../psi-whiteboard/wbscene.cpp) — сцена, группировка, Z-order;
+- [`wbitem.h`](../psi-whiteboard/wbitem.h), [`wbitem.cpp`](../psi-whiteboard/wbitem.cpp) — элементы на сцене, трансформации;
+- [`wbnewitem.h`](../psi-whiteboard/wbnewitem.h), [`wbnewitem.cpp`](../psi-whiteboard/wbnewitem.cpp) — базовый класс временных элементов;
+- [`wbnewpath.h`](../psi-whiteboard/wbnewpath.h), [`wbnewpath.cpp`](../psi-whiteboard/wbnewpath.cpp) — рисование путей (freehand);
+- [`wbnewimage.h`](../psi-whiteboard/wbnewimage.h), [`wbnewimage.cpp`](../psi-whiteboard/wbnewimage.cpp) — вставка изображений;
 - [`CMakeLists.txt`](CMakeLists.txt) — сборка модуля;
 - документы и правила: [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md), [`.windsurfrules`](.windsurfrules), [`.cursor/rules/*`](.cursor/rules/).
 
@@ -356,4 +361,6 @@ XEP-0113 не определяет пользовательский интерф
 4. [XEP-0030: Service Discovery](https://xmpp.org/extensions/xep-0030.html) — обнаружение поддержки.
 5. [SVG 1.1 Specification](https://www.w3.org/TR/SVG11/) — формат SVG, используемый реализацией.
 6. [Scalable Vector Graphics (SVG) Tiny 1.2](https://www.w3.org/TR/SVGTiny12/) — `baseProfile='tiny'`, используемый в `EMPTYWB`.
-7. [`xep-collaborative-svg-whiteboarding.xml`](xep-collaborative-svg-whiteboarding.xml) — формализованный черновик SVG-профиля поверх SXE (в этом репозитории).
+7. [`xep-svg-whiteboarding-minimal.xml`](xep-svg-whiteboarding-minimal.xml) / [`xep-svg-whiteboarding-extended.xml`](xep-svg-whiteboarding-extended.xml) — актуальный стандарт SVG-доски поверх SXE (Jingle + XEP-0284).
+8. [`WHITEBOARD_PROFILE.md`](WHITEBOARD_PROFILE.md) — нормативные правила реализации; [`SVG_WHITEBOARD_VARIANTS.md`](SVG_WHITEBOARD_VARIANTS.md) — обзор вариантов.
+9. [`xep-collaborative-svg-whiteboarding.xml`](xep-collaborative-svg-whiteboarding.xml) — **deprecated** черновик профиля Psi-native.
