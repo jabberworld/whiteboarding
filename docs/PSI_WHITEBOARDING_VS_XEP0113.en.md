@@ -350,8 +350,8 @@ The following files of the whiteboarding module were studied for the analysis:
 - [`wbnewitem.h`](../psi-whiteboard/wbnewitem.h), [`wbnewitem.cpp`](../psi-whiteboard/wbnewitem.cpp) — the base class of temporary items;
 - [`wbnewpath.h`](../psi-whiteboard/wbnewpath.h), [`wbnewpath.cpp`](../psi-whiteboard/wbnewpath.cpp) — path drawing (freehand);
 - [`wbnewimage.h`](../psi-whiteboard/wbnewimage.h), [`wbnewimage.cpp`](../psi-whiteboard/wbnewimage.cpp) — image insertion;
-- [`CMakeLists.txt`](CMakeLists.txt) — the module build;
-- documents and rules: [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md), [`.windsurfrules`](.windsurfrules), [`.cursor/rules/*`](.cursor/rules/).
+- [`CMakeLists.txt`](../psi-whiteboard/CMakeLists.txt) — the module build;
+- documents and rules: [`AGENTS.md`](../AGENTS.md), [`CLAUDE.md`](../CLAUDE.md), [`.windsurfrules`](../.windsurfrules), [`.cursor/rules/*`](../.cursor/rules/).
 
 In addition, the SXE sources from the Psi tree (`src/sxe/`) were studied: `sxemanager.cpp`, `sxesession.h`, `sxerecord.h`/`sxerecord.cpp`, `sxenewedit.cpp`, `sxerecordedit.cpp`, `sxeremoveedit.cpp`. This working copy contains only the `whiteboarding/` module, so the SXE files were analyzed from the Psi repository.
 

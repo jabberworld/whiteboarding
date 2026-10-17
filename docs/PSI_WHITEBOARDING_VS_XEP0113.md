@@ -350,8 +350,8 @@ XEP-0113 не определяет пользовательский интерф
 - [`wbnewitem.h`](../psi-whiteboard/wbnewitem.h), [`wbnewitem.cpp`](../psi-whiteboard/wbnewitem.cpp) — базовый класс временных элементов;
 - [`wbnewpath.h`](../psi-whiteboard/wbnewpath.h), [`wbnewpath.cpp`](../psi-whiteboard/wbnewpath.cpp) — рисование путей (freehand);
 - [`wbnewimage.h`](../psi-whiteboard/wbnewimage.h), [`wbnewimage.cpp`](../psi-whiteboard/wbnewimage.cpp) — вставка изображений;
-- [`CMakeLists.txt`](CMakeLists.txt) — сборка модуля;
-- документы и правила: [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md), [`.windsurfrules`](.windsurfrules), [`.cursor/rules/*`](.cursor/rules/).
+- [`CMakeLists.txt`](../psi-whiteboard/CMakeLists.txt) — сборка модуля;
+- документы и правила: [`AGENTS.md`](../AGENTS.md), [`CLAUDE.md`](../CLAUDE.md), [`.windsurfrules`](../.windsurfrules), [`.cursor/rules/*`](../.cursor/rules/).
 
 Кроме того, изучались исходники SXE из дерева Psi (`src/sxe/`): `sxemanager.cpp`, `sxesession.h`, `sxerecord.h`/`sxerecord.cpp`, `sxenewedit.cpp`, `sxerecordedit.cpp`, `sxeremoveedit.cpp`. В данной рабочей копии присутствует только модуль `whiteboarding/`, поэтому файлы SXE анализировались по репозиторию Psi.
 
