@@ -1,7 +1,8 @@
-# SVG Whiteboarding: варианты профиля (краткое описание)
+# Advanced Whiteboarding: варианты профиля (краткое описание)
 
-Краткий обзор двух версий нового стандарта SVG-доски поверх Shared XML Editing
-(XEP-0284) и места устаревшего профиля Psi.
+Краткий обзор двух версий нового стандарта **Advanced Whiteboarding** (SVG-доска
+поверх Shared XML Editing, XEP-0284). Стандарт замещает **XEP-0113: Simple
+Whiteboarding** и описывает место устаревшего профиля Psi.
 
 ## Общая база
 

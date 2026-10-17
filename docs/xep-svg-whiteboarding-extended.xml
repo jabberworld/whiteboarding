@@ -6,15 +6,16 @@
 <?xml-stylesheet type='text/xsl' href='xep.xsl'?>
 <xep>
 <header>
-  <title>SVG Whiteboarding over Shared XML Editing (Extended Profile)</title>
+  <title>Advanced Whiteboarding</title>
   <abstract>
-    This specification defines an SVG whiteboard as a Jingle application type
-    whose shared document is synchronized with Shared XML Editing (XEP-0284).
-    This is the extended profile: it contains the minimal, standards-only
-    profile plus optional, separately negotiated extensions for capability
-    discovery, image hosting, large attachments and initiation from a chat.
-    It is intended to replace the deprecated, Psi-specific whiteboarding profile
-    that predated XEP-0284.
+    This specification defines Advanced Whiteboarding — an SVG whiteboard
+    realized as a Jingle application type whose shared document is synchronized
+    with Shared XML Editing (XEP-0284). This is the extended profile: it contains
+    the minimal, standards-only profile plus optional, separately negotiated
+    extensions for capability discovery, image hosting, large attachments and
+    initiation from a chat. It supersedes XEP-0113: Simple Whiteboarding and
+    replaces the deprecated, Psi-specific whiteboarding profile that predated
+    XEP-0284.
   </abstract>
   <legal>
     <copyright>This XMPP Extension Protocol is copyright © 1999 – 2026 by the XMPP Standards Foundation (XSF).</copyright>
@@ -39,9 +40,9 @@
     <spec>XEP-0353</spec>
     <spec>XEP-0363</spec>
   </dependencies>
-  <supersedes/>
+  <supersedes>XEP-0113</supersedes>
   <supersededby/>
-  <shortname>svg-whiteboard</shortname>
+  <shortname>advanced-whiteboard</shortname>
   <author>
     <firstname>Draft</firstname>
     <surname>Editor</surname>
@@ -730,6 +731,12 @@
 
 
 <section1 topic='Relationship to Other Specifications' anchor='relationship'>
+  <p>
+    This specification supersedes XEP-0113: Simple Whiteboarding. XEP-0113
+    defined a message-based, command-oriented whiteboarding protocol; that model
+    is incompatible with the shared-document synchronization used here, so
+    XEP-0113-only clients are not interoperable with this profile.
+  </p>
   <table caption='Comparison of the related whiteboarding approaches'>
     <tr><th>Aspect</th><th>XEP-0113</th><th>Deprecated Psi profile</th><th>This profile</th></tr>
     <tr><td>Session management</td><td>None (plain messages)</td><td>SXE <tt>&lt;negotiation/&gt;</tt></td><td>Jingle (XEP-0166)</td></tr>

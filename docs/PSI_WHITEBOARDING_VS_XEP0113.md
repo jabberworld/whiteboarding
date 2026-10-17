@@ -1,6 +1,6 @@
 # Подробное сравнение реализации whiteboarding в Psi с XEP-0113: Simple Whiteboarding
 
-> **Статус:** описанный здесь профиль Psi-native (`http://jabber.org/protocol/sxe`, кастомный `<negotiation>`, ранняя редакция SXE) — **deprecated**. Новый стандарт, построенный на Jingle (XEP-0166) и XEP-0284, описан в `xep-svg-whiteboarding-minimal.xml` / `xep-svg-whiteboarding-extended.xml`; нормативные правила — в `WHITEBOARD_PROFILE.md`; обзор вариантов и миграции — в `SVG_WHITEBOARD_VARIANTS.md`. Этот документ сохранён как сравнительный анализ и историческая справка.
+> **Статус:** описанный здесь профиль Psi-native (`http://jabber.org/protocol/sxe`, кастомный `<negotiation>`, ранняя редакция SXE) — **deprecated**. Новый стандарт **Advanced Whiteboarding**, построенный на Jingle (XEP-0166) и XEP-0284 (замещает XEP-0113), описан в `xep-svg-whiteboarding-minimal.xml` / `xep-svg-whiteboarding-extended.xml`; нормативные правила — в `WHITEBOARD_PROFILE.md`; обзор вариантов и миграции — в `SVG_WHITEBOARD_VARIANTS.md`. Этот документ сохранён как сравнительный анализ и историческая справка.
 
 ## Содержание
 
@@ -361,6 +361,6 @@ XEP-0113 не определяет пользовательский интерф
 4. [XEP-0030: Service Discovery](https://xmpp.org/extensions/xep-0030.html) — обнаружение поддержки.
 5. [SVG 1.1 Specification](https://www.w3.org/TR/SVG11/) — формат SVG, используемый реализацией.
 6. [Scalable Vector Graphics (SVG) Tiny 1.2](https://www.w3.org/TR/SVGTiny12/) — `baseProfile='tiny'`, используемый в `EMPTYWB`.
-7. [`xep-svg-whiteboarding-minimal.xml`](xep-svg-whiteboarding-minimal.xml) / [`xep-svg-whiteboarding-extended.xml`](xep-svg-whiteboarding-extended.xml) — актуальный стандарт SVG-доски поверх SXE (Jingle + XEP-0284).
+7. [`xep-svg-whiteboarding-minimal.xml`](xep-svg-whiteboarding-minimal.xml) / [`xep-svg-whiteboarding-extended.xml`](xep-svg-whiteboarding-extended.xml) — актуальный стандарт **Advanced Whiteboarding** (SVG-доска поверх SXE, Jingle + XEP-0284).
 8. [`WHITEBOARD_PROFILE.md`](WHITEBOARD_PROFILE.md) — нормативные правила реализации; [`SVG_WHITEBOARD_VARIANTS.md`](SVG_WHITEBOARD_VARIANTS.md) — обзор вариантов.
 9. [`xep-collaborative-svg-whiteboarding.xml`](xep-collaborative-svg-whiteboarding.xml) — **deprecated** черновик профиля Psi-native.
