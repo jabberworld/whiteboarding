@@ -2,6 +2,8 @@
 
 > **Статус:** описанный здесь профиль Psi-native (`http://jabber.org/protocol/sxe`, кастомный `<negotiation>`, ранняя редакция SXE) — **deprecated**. Новый стандарт **Advanced Whiteboarding**, построенный на Jingle (XEP-0166) и XEP-0284 (замещает XEP-0113), описан в `xep-svg-whiteboarding-minimal.xml` / `xep-svg-whiteboarding-extended.xml`; нормативные правила — в `WHITEBOARD_PROFILE.md`; обзор вариантов и миграции — в `SVG_WHITEBOARD_VARIANTS.md`. Этот документ сохранён как сравнительный анализ и историческая справка.
 
+> English version: [`PSI_WHITEBOARDING_VS_XEP0113.en.md`](PSI_WHITEBOARDING_VS_XEP0113.en.md)
+
 ## Содержание
 
 - [1. Введение](#1-введение)

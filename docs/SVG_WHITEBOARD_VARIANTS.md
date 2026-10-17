@@ -1,5 +1,7 @@
 # Advanced Whiteboarding: варианты профиля (краткое описание)
 
+> English version: [`SVG_WHITEBOARD_VARIANTS.en.md`](SVG_WHITEBOARD_VARIANTS.en.md)
+
 Краткий обзор двух версий нового стандарта **Advanced Whiteboarding** (SVG-доска
 поверх Shared XML Editing, XEP-0284). Стандарт замещает **XEP-0113: Simple
 Whiteboarding** и описывает место устаревшего профиля Psi.

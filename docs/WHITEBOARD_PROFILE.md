@@ -1,5 +1,7 @@
 # Правила реализации whiteboard-профиля (SXE / XEP-0284)
 
+> English version: [`WHITEBOARD_PROFILE.en.md`](WHITEBOARD_PROFILE.en.md)
+
 Нормативный документ для реализаций **Advanced Whiteboarding** (SVG-доски поверх Shared XML Editing, XEP-0284).
 Описывает обязательные и рекомендуемые правила, conformance-классы и чеклист.
 
