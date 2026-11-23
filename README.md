@@ -52,6 +52,7 @@ application type у обоих одинаков, поэтому выбор ве�
 **Правила и обзоры:**
 - [`docs/WHITEBOARD_PROFILE.md`](docs/WHITEBOARD_PROFILE.md) ([EN](docs/WHITEBOARD_PROFILE.en.md)) — нормативные правила реализации.
 - [`docs/SVG_WHITEBOARD_VARIANTS.md`](docs/SVG_WHITEBOARD_VARIANTS.md) ([EN](docs/SVG_WHITEBOARD_VARIANTS.en.md)) — краткий обзор вариантов.
+- [`docs/XSF_SUBMISSION.md`](docs/XSF_SUBMISSION.md) ([EN](docs/XSF_SUBMISSION.en.md)) — что и как подавать в XSF.
 
 **Историческая справка (устаревший профиль Psi):**
 - [`docs/PSI_WHITEBOARDING_VS_XEP0113.md`](docs/PSI_WHITEBOARDING_VS_XEP0113.md) ([EN](docs/PSI_WHITEBOARDING_VS_XEP0113.en.md)) — сравнение старой реализации Psi с XEP-0113.
