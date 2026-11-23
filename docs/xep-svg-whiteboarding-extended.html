@@ -72,6 +72,10 @@ a{color:#1a5fb4}
 <li><a href="#edit-viewbox">8.8 Resizing the Canvas</a></li>
 <li><a href="#edit-clear">8.9 Clearing the Canvas</a></li>
 <li><a href="#muc">9 Multi-User Whiteboards</a></li>
+<li><a href="#muc-advertise">9.1 Starting and Advertising</a></li>
+<li><a href="#muc-join">9.2 Joining</a></li>
+<li><a href="#muc-edit">9.3 Editing</a></li>
+<li><a href="#muc-leave">9.4 Leaving and Ending</a></li>
 <li><a href="#document">10 Initial Document</a></li>
 <li><a href="#def">11 Formal Definition</a></li>
 <li><a href="#def-app">11.1 Application Type</a></li>
@@ -362,19 +366,64 @@ a{color:#1a5fb4}
   &lt;/state&gt;
 &lt;/sxe&gt;</pre></figure>
 <h2 id="muc">9 Multi-User Whiteboards</h2><p>
-    A whiteboard MAY be hosted in a Multi-User Chat room (XEP-0045) or a
-    dedicated component. The host is the room&#x27;s bare JID; SXE payloads are sent
-    as <code>type=&#x27;groupchat&#x27;</code> messages to that JID and are reflected to all
-    occupants. Jingle session management is likewise performed with the room as
-    the peer.
-  </p><p>
-    Broadcast presence within the room MAY advertise a session using the SXE
-    presence element defined in XEP-0284:
-  </p><figure class="code-example"><figcaption>Advertising a whiteboard session in presence</figcaption><pre class="prettyprint">    
+    A whiteboard MAY be hosted in a Multi-User Chat room (XEP-0045). Jingle
+    cannot be used with a room as the peer: IQs addressed to the room&#x27;s bare JID
+    are handled by the MUC service. A room whiteboard is therefore an SXE session
+    without Jingle, with the room as the host, as anticipated by XEP-0284. It
+    uses only the elements defined in XEP-0284. The rules in this section are
+    provisional until they have been tested between independent implementations.
+  </p><h3 id="muc-advertise">9.1 Starting and Advertising</h3><p>
+      The occupant that starts a whiteboard chooses a new, unique session
+      identifier, creates the empty document (see
+      <a href="#document">Initial Document</a>) and advertises the session
+      in its room presence with the SXE presence element of XEP-0284. The element
+      SHOULD contain the &lt;description/&gt; of this application type, so that
+      other occupants know the document type before they connect. Every occupant
+      that has joined the whiteboard SHOULD include the same element in its room
+      presence and remove it when it leaves the whiteboard.
+    </p><figure class="code-example"><figcaption>Advertising a whiteboard session in room presence</figcaption><pre class="prettyprint">      
 &lt;presence from=&#x27;laertes@shakespeare.lit/castle&#x27;
           to=&#x27;chamber@conference.shakespeare.lit/laertes&#x27;&gt;
-  &lt;sxe xmlns=&#x27;urn:xmpp:sxe:0&#x27; session=&#x27;851ba2&#x27; name=&#x27;Chamber Whiteboard&#x27;/&gt;
-&lt;/presence&gt;</pre></figure>
+  &lt;sxe xmlns=&#x27;urn:xmpp:sxe:0&#x27; session=&#x27;a7f3c9e1&#x27; name=&#x27;Chamber Whiteboard&#x27;&gt;
+    &lt;description xmlns=&#x27;urn:xmpp:jingle:apps:svg-whiteboard:0&#x27;/&gt;
+  &lt;/sxe&gt;
+&lt;/presence&gt;</pre></figure><h3 id="muc-join">9.2 Joining</h3><p>
+      A joining occupant sends <code>&lt;connect/&gt;</code> as a
+      <code>type=&#x27;groupchat&#x27;</code> message to the room. An occupant without voice
+      cannot send groupchat messages; it sends <code>&lt;connect/&gt;</code> as a
+      private message to the occupant JID of an occupant that advertises the
+      session instead.
+    </p><figure class="code-example"><figcaption>Connecting to a room whiteboard</figcaption><pre class="prettyprint">      
+&lt;message from=&#x27;kingclaudius@shakespeare.lit/castle&#x27;
+         to=&#x27;chamber@conference.shakespeare.lit&#x27;
+         type=&#x27;groupchat&#x27;
+         id=&#x27;c1&#x27;&gt;
+  &lt;sxe xmlns=&#x27;urn:xmpp:sxe:0&#x27; session=&#x27;a7f3c9e1&#x27; id=&#x27;1&#x27;&gt;
+    &lt;connect/&gt;
+  &lt;/sxe&gt;
+  &lt;no-store xmlns=&#x27;urn:xmpp:hints&#x27;/&gt;
+&lt;/message&gt;</pre></figure><p>
+      Offers, their acceptance or refusal and the state are sent as private
+      messages (<code>type=&#x27;chat&#x27;</code>) between the occupant JIDs, so that the state
+      is not broadcast to every occupant:
+    </p><ul><li>The occupant that started the whiteboard MUST answer a <code>&lt;connect/&gt;</code> with a <code>&lt;state-offer/&gt;</code> while it is in the session; any other synchronized participant MAY answer. The offer contains the &lt;description/&gt; of this application type.</li><li>The joiner accepts one offer, preferring the starter&#x27;s, and refuses the others.</li><li>In the state, <code>last-sender</code> and <code>last-id</code> of <code>&lt;document-end/&gt;</code> MUST identify the last &lt;sxe/&gt; element whose edits are included, with <code>last-sender</code> being the occupant JID of its sender. The joiner stores the edits it receives from the room after accepting the offer, and applies those after the one identified by <code>last-sender</code>/<code>last-id</code> once the state is complete.</li></ul><figure class="code-example"><figcaption>A state offer sent privately to the joiner</figcaption><pre class="prettyprint">      
+&lt;message from=&#x27;chamber@conference.shakespeare.lit/laertes&#x27;
+         to=&#x27;kingclaudius@shakespeare.lit/castle&#x27;
+         type=&#x27;chat&#x27;
+         id=&#x27;o1&#x27;&gt;
+  &lt;sxe xmlns=&#x27;urn:xmpp:sxe:0&#x27; session=&#x27;a7f3c9e1&#x27; id=&#x27;17&#x27;&gt;
+    &lt;state-offer&gt;
+      &lt;description xmlns=&#x27;urn:xmpp:jingle:apps:svg-whiteboard:0&#x27;/&gt;
+    &lt;/state-offer&gt;
+  &lt;/sxe&gt;
+  &lt;x xmlns=&#x27;http://jabber.org/protocol/muc#user&#x27;/&gt;
+  &lt;no-store xmlns=&#x27;urn:xmpp:hints&#x27;/&gt;
+&lt;/message&gt;</pre></figure><h3 id="muc-edit">9.3 Editing</h3><ul><li>Edits are sent as <code>type=&#x27;groupchat&#x27;</code> messages to the room and carry the &lt;no-store/&gt; hint, so that they are not archived with the room history.</li><li>The room reflects every message to its sender. A participant MUST ignore the reflection of its own &lt;sxe/&gt; elements; applying a reflected <code>&lt;set/&gt;</code> again would increase the version of the record a second time.</li><li>The <code>id</code> of &lt;sxe/&gt; elements is unique per occupant. Where the room supports Occupant Identifiers (XEP-0421), participants SHOULD use them to recognise an occupant across nickname changes.</li><li>Every participant keeps the state, since there is no component that stores it.</li><li>Edits of occupants without voice cannot reach the room; such occupants can follow the whiteboard but not edit it.</li></ul><h3 id="muc-leave">9.4 Leaving and Ending</h3><p>
+      A participant leaves the whiteboard by removing the &lt;sxe/&gt; element
+      from its room presence, or by leaving the room. The whiteboard ends when no
+      occupant advertises it any longer. Keeping a whiteboard beyond that is
+      local to each client, for example by saving the document as an SVG file.
+    </p>
 <h2 id="document">10 Initial Document</h2><p>
     When a session is started without a user-supplied document, the initiator
     MUST initialize it to the empty whiteboard document below.

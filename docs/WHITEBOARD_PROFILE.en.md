@@ -83,6 +83,17 @@ A Full client MUST interoperate correctly with a Core peer without requiring the
 - R9.3 Jingle File Transfer (XEP-0234) and Jingle Message Initiation (XEP-0353) MAY be used as alternative channels/ways of initiation.
 - R9.4 When an extension is unavailable, an implementation MUST degrade to the corresponding Core behavior (for example, an inline `data:` URI).
 
+## 9a. Group Chat Whiteboards (MUC, provisional)
+
+- R9a.1 A room whiteboard is an SXE session without Jingle; the room is the host. Only XEP-0284 elements are used.
+- R9a.2 The starter advertises the session in its room presence with `<sxe xmlns='urn:xmpp:sxe:0' session name>`, which SHOULD contain the whiteboard `<description/>`; every participant SHOULD advertise it while it takes part.
+- R9a.3 `<connect/>` is sent as `groupchat` to the room; an occupant without voice sends it as a private message to an advertising occupant.
+- R9a.4 `<state-offer/>`, `<accept-state/>`/`<refuse-state/>` and the state are private messages between occupant JIDs. The starter MUST offer; other synchronized participants MAY.
+- R9a.5 In a room, `last-sender` (occupant JID) and `last-id` of `<document-end/>` MUST identify the last included `<sxe>`.
+- R9a.6 Edits are `groupchat` messages with `<no-store/>`; a participant MUST ignore the reflection of its own `<sxe>`.
+- R9a.7 Occupant Identifiers (XEP-0421) SHOULD be used to follow occupants across nickname changes.
+- R9a.8 The whiteboard ends when no occupant advertises it.
+
 ## 10. Errors, Limits, Security
 
 - R10.1 Images SHOULD be limited in size and format.
@@ -105,6 +116,11 @@ A Full client MUST interoperate correctly with a Core peer without requiring the
 - [ ] Entity Capabilities (R4.3).
 - [ ] Upload with fallback (R9.2, R9.4).
 - [ ] Jingle FT / JMI as needed (R9.3).
+
+**Group chat (provisional):**
+- [ ] Presence advertisement with `<description/>` (R9a.2).
+- [ ] `<connect/>` to the room, offers and state in private messages (R9a.3, R9a.4).
+- [ ] Own reflected edits ignored (R9a.6).
 
 ## 12. References
 
