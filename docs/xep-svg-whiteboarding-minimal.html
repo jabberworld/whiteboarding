@@ -78,10 +78,14 @@ a{color:#1a5fb4}
 <li><a href="#def-schema">11.2 XML Schema</a></li>
 <li><a href="#def-grammar">11.3 Grammar of the d Attribute</a></li>
 <li><a href="#security">12 Security Considerations</a></li>
-<li><a href="#iana">13 IANA Considerations</a></li>
-<li><a href="#registrar">14 XMPP Registrar Considerations</a></li>
-<li><a href="#relationship">15 Relationship to Other Specifications</a></li>
-<li><a href="#ack">16 Acknowledgements</a></li>
+<li><a href="#security-render">12.1 Rendering Untrusted SVG</a></li>
+<li><a href="#security-limits">12.2 Resource Limits</a></li>
+<li><a href="#security-records">12.3 Integrity of the Record Set</a></li>
+<li><a href="#privacy">13 Privacy Considerations</a></li>
+<li><a href="#iana">14 IANA Considerations</a></li>
+<li><a href="#registrar">15 XMPP Registrar Considerations</a></li>
+<li><a href="#relationship">16 Relationship to Other Specifications</a></li>
+<li><a href="#ack">17 Acknowledgements</a></li>
 </ol></nav>
 <h2 id="intro">1 Introduction</h2><p>
     XEP-0113 defines a minimal, message-based whiteboarding protocol built on a
@@ -434,9 +438,22 @@ a{color:#1a5fb4}
       and elliptical arcs (<code>A</code>/<code>a</code>). The <code>transform</code>
       attribute uses the SVG transform-list grammar.
     </p>
-<h2 id="security">12 Security Considerations</h2><ul><li>Embedded <code>data:</code> images can be large; implementations SHOULD enforce size and format limits.</li><li>Clients SHOULD render the shared document without fetching external resources.</li><li>Any participant may edit the document; access control is out of scope and may be provided by the host.</li><li>The XML prolog carried in the <code>prolog</code> attribute MUST be treated as untrusted input.</li></ul>
-<h2 id="iana">13 IANA Considerations</h2><p>This document requires no interaction with the Internet Assigned Numbers Authority (IANA).</p>
-<h2 id="registrar">14 XMPP Registrar Considerations</h2><p>
+<h2 id="security">12 Security Considerations</h2><p>
+    The shared document is written by every participant and is therefore
+    untrusted input. SVG is an active format: rendering it with a general SVG or
+    HTML engine without restrictions can run scripts, load remote content and
+    track the reader.
+  </p><h3 id="security-render">12.1 Rendering Untrusted SVG</h3><ul><li>A client MUST NOT execute scripts and MUST ignore &lt;script/&gt;, &lt;foreignObject/&gt;, animation elements (&lt;animate/&gt;, &lt;set/&gt;, &lt;animateTransform/&gt;, &lt;animateMotion/&gt;), event attributes (<code>on*</code>) and <code>javascript:</code> URIs.</li><li>A client SHOULD render only an allow-list of elements: &lt;svg/&gt;, &lt;g/&gt;, &lt;path/&gt;, &lt;line/&gt;, &lt;polyline/&gt;, &lt;polygon/&gt;, &lt;rect/&gt;, &lt;circle/&gt;, &lt;ellipse/&gt;, &lt;image/&gt;, &lt;text/&gt;, &lt;title/&gt;, &lt;desc/&gt;, &lt;defs/&gt;, &lt;linearGradient/&gt;, &lt;radialGradient/&gt;, &lt;stop/&gt;, and an allow-list of attributes: geometry, <code>transform</code>, <code>id</code>, presentation attributes (<code>stroke*</code>, <code>fill*</code>, <code>opacity</code>, <code>font-*</code>, <code>stop-*</code>) and <code>xlink:href</code> on &lt;image/&gt;. Other nodes are kept in the record set, so that the document stays consistent between participants, but are not rendered.</li><li>A client MUST NOT fetch external resources while rendering: no remote images, fonts, style sheets or <code>&lt;use/&gt;</code> references outside the document. Images are only accepted as <code>data:</code> URIs.</li><li>Embedded images MUST be decoded with a raster decoder only; an embedded <code>data:image/svg+xml</code> image MUST NOT be rendered as a document. Clients SHOULD accept PNG and JPEG and SHOULD limit the decoded size (for example to 4096 × 4096 pixels).</li><li>The XML prolog carried in the <code>prolog</code> attribute MUST be treated as untrusted text. A client MUST NOT parse it, resolve its DOCTYPE or expand entities from it.</li></ul><h3 id="security-limits">12.2 Resource Limits</h3><p>
+      A participant can send arbitrary numbers of records, long character data and
+      deep nesting. A client SHOULD enforce limits and stop applying edits of a
+      session that exceeds them, for example: 100,000 records, 1 MiB of character
+      data per record, 16 MiB for the whole document, a nesting depth of 32, and a
+      rate limit on incoming &lt;sxe/&gt; elements. Path data and transform lists
+      SHOULD be parsed with bounded effort.
+    </p><h3 id="security-records">12.3 Integrity of the Record Set</h3><ul><li>Record identifiers, parents and weights are chosen by the sender. A client MUST reject edits that would make a record its own ancestor, and MUST handle orphans, duplicate roots and duplicate attributes as XEP-0284 requires.</li><li>Record names MUST be valid XML names; a processing instruction target <code>xml</code> MUST be rejected.</li><li>Edits from entities that are not participants of the session, or that are outside the Jingle <code>senders</code> of the content, MUST be ignored.</li><li>Any participant may edit the whole document; finer access control is out of scope.</li></ul>
+<h2 id="privacy">13 Privacy Considerations</h2><ul><li>Payload sent in messages passes the servers of both participants (and the room in a group chat) in clear text, unless it is protected end to end, for example on a Jingle connection with DTLS or by an encryption mechanism for the payload. Clients SHOULD show whether a whiteboard is protected.</li><li>Payload carries the &lt;no-store/&gt; hint so that servers do not archive it; clients cannot verify that a server honours it.</li><li>Images and drawings may contain personal data. Saving a whiteboard is a local action of each participant; the other participants are not notified.</li><li>Advertising a session in presence reveals participation to every entity that receives the presence, for example all occupants of a room.</li><li>A client that fetches no external resources (see <a href="#security-render">Rendering Untrusted SVG</a>) does not reveal its address or the time of viewing to third parties.</li></ul>
+<h2 id="iana">14 IANA Considerations</h2><p>This document requires no interaction with the Internet Assigned Numbers Authority (IANA).</p>
+<h2 id="registrar">15 XMPP Registrar Considerations</h2><p>
     The Registrar is requested to register the application type
     <code>urn:xmpp:jingle:apps:svg-whiteboard:0</code> in its registry of Jingle
     application formats.
@@ -448,7 +465,7 @@ a{color:#1a5fb4}
   &lt;doc&gt;XEP-XXXX&lt;/doc&gt;
 &lt;/application&gt;
 </pre>
-<h2 id="relationship">15 Relationship to Other Specifications</h2><p>
+<h2 id="relationship">16 Relationship to Other Specifications</h2><p>
     This specification supersedes XEP-0113: Simple Whiteboarding. XEP-0113
     defined a message-based, command-oriented whiteboarding protocol; that model
     is incompatible with the shared-document synchronization used here, so
@@ -458,7 +475,7 @@ a{color:#1a5fb4}
     Jingle-based session management and the <code>urn:xmpp:sxe:0</code> namespace; the
     record model and edit elements are otherwise the same as in XEP-0284.
   </p>
-<h2 id="ack">16 Acknowledgements</h2><p>
+<h2 id="ack">17 Acknowledgements</h2><p>
     The whiteboard model is derived from the whiteboarding and Shared XML Editing
     work of Joonas Govenius in the Psi instant messaging client. This profile
     modernizes that work onto the standardized XEP-0284 framework.

@@ -627,11 +627,48 @@
 </section1>
 
 <section1 topic='Security Considerations' anchor='security'>
+  <p>
+    The shared document is written by every participant and is therefore
+    untrusted input. SVG is an active format: rendering it with a general SVG or
+    HTML engine without restrictions can run scripts, load remote content and
+    track the reader.
+  </p>
+  <section2 topic='Rendering Untrusted SVG' anchor='security-render'>
+    <ul>
+      <li>A client MUST NOT execute scripts and MUST ignore &lt;script/&gt;, &lt;foreignObject/&gt;, animation elements (&lt;animate/&gt;, &lt;set/&gt;, &lt;animateTransform/&gt;, &lt;animateMotion/&gt;), event attributes (<tt>on*</tt>) and <tt>javascript:</tt> URIs.</li>
+      <li>A client SHOULD render only an allow-list of elements: &lt;svg/&gt;, &lt;g/&gt;, &lt;path/&gt;, &lt;line/&gt;, &lt;polyline/&gt;, &lt;polygon/&gt;, &lt;rect/&gt;, &lt;circle/&gt;, &lt;ellipse/&gt;, &lt;image/&gt;, &lt;text/&gt;, &lt;title/&gt;, &lt;desc/&gt;, &lt;defs/&gt;, &lt;linearGradient/&gt;, &lt;radialGradient/&gt;, &lt;stop/&gt;, and an allow-list of attributes: geometry, <tt>transform</tt>, <tt>id</tt>, presentation attributes (<tt>stroke*</tt>, <tt>fill*</tt>, <tt>opacity</tt>, <tt>font-*</tt>, <tt>stop-*</tt>) and <tt>xlink:href</tt> on &lt;image/&gt;. Other nodes are kept in the record set, so that the document stays consistent between participants, but are not rendered.</li>
+      <li>A client MUST NOT fetch external resources while rendering, with one exception in this extended profile: an image URL placed by the HTTP File Upload extension MAY be fetched, without credentials or cookies, only over HTTPS, and only when the user has allowed it for the session or the sender. Otherwise the image is shown as a placeholder.</li>
+      <li>Embedded images MUST be decoded with a raster decoder only; an embedded <tt>data:image/svg+xml</tt> image MUST NOT be rendered as a document. Clients SHOULD accept PNG and JPEG and SHOULD limit the decoded size (for example to 4096 × 4096 pixels).</li>
+      <li>The XML prolog carried in the <tt>prolog</tt> attribute MUST be treated as untrusted text. A client MUST NOT parse it, resolve its DOCTYPE or expand entities from it.</li>
+    </ul>
+  </section2>
+  <section2 topic='Resource Limits' anchor='security-limits'>
+    <p>
+      A participant can send arbitrary numbers of records, long character data and
+      deep nesting. A client SHOULD enforce limits and stop applying edits of a
+      session that exceeds them, for example: 100,000 records, 1 MiB of character
+      data per record, 16 MiB for the whole document, a nesting depth of 32, and a
+      rate limit on incoming &lt;sxe/&gt; elements. Path data and transform lists
+      SHOULD be parsed with bounded effort.
+    </p>
+  </section2>
+  <section2 topic='Integrity of the Record Set' anchor='security-records'>
+    <ul>
+      <li>Record identifiers, parents and weights are chosen by the sender. A client MUST reject edits that would make a record its own ancestor, and MUST handle orphans, duplicate roots and duplicate attributes as XEP-0284 requires.</li>
+      <li>Record names MUST be valid XML names; a processing instruction target <tt>xml</tt> MUST be rejected.</li>
+      <li>Edits from entities that are not participants of the session, or that are outside the Jingle <tt>senders</tt> of the content, MUST be ignored.</li>
+      <li>Any participant may edit the whole document; finer access control is out of scope.</li>
+    </ul>
+  </section2>
+</section1>
+
+<section1 topic='Privacy Considerations' anchor='privacy'>
   <ul>
-    <li>Embedded <tt>data:</tt> images can be large; implementations SHOULD enforce size and format limits.</li>
-    <li>Clients SHOULD render the shared document without fetching external resources.</li>
-    <li>Any participant may edit the document; access control is out of scope and may be provided by the host.</li>
-    <li>The XML prolog carried in the <tt>prolog</tt> attribute MUST be treated as untrusted input.</li>
+    <li>Payload sent in messages passes the servers of both participants (and the room in a group chat) in clear text, unless it is protected end to end, for example on a Jingle connection with DTLS or by an encryption mechanism for the payload. Clients SHOULD show whether a whiteboard is protected.</li>
+    <li>Payload carries the &lt;no-store/&gt; hint so that servers do not archive it; clients cannot verify that a server honours it.</li>
+    <li>Images and drawings may contain personal data. Saving a whiteboard is a local action of each participant; the other participants are not notified.</li>
+    <li>Advertising a session in presence reveals participation to every entity that receives the presence, for example all occupants of a room.</li>
+    <li>A client that fetches no external resources (see <link url='#security-render'>Rendering Untrusted SVG</link>) does not reveal its address or the time of viewing to third parties.</li>
   </ul>
 </section1>
 

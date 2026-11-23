@@ -85,9 +85,12 @@ A Full client MUST interoperate correctly with a Core peer without requiring the
 
 ## 10. Errors, Limits, Security
 
-- R10.1 Images SHOULD be limited in size and format.
-- R10.2 The document SHOULD be rendered without fetching external resources (except those explicitly allowed by a Full extension).
-- R10.3 The XML prolog from the `prolog` attribute MUST be treated as untrusted input.
+- R10.1 Images SHOULD be limited in size and format (PNG and JPEG; decoded size for example ≤ 4096 × 4096); an embedded `data:image/svg+xml` MUST NOT be rendered as a document.
+- R10.2 The document MUST be rendered without fetching external resources; in Full, an uploaded image URL MAY be fetched over HTTPS without credentials and only with the user's permission.
+- R10.3 The XML prolog from the `prolog` attribute MUST be treated as untrusted text and MUST NOT be parsed (no DOCTYPE resolution, no entity expansion).
+- R10.3.1 Scripts, `<foreignObject>`, animation elements, `on*` attributes and `javascript:` URIs MUST NOT be executed or rendered; rendering SHOULD use an allow-list of elements and attributes (see the Security Considerations of the spec).
+- R10.3.2 Clients SHOULD enforce resource limits (records, character data per record, document size, nesting depth, incoming rate) and MUST reject edits that make a record its own ancestor.
+- R10.3.3 Payload through servers is visible to them unless protected end to end; clients SHOULD show whether a whiteboard is protected.
 - R10.4 Edit access is available to all participants by default; access control is outside the profile's scope.
 - R10.5 High-frequency edits (freehand) SHOULD be coalesced to save bandwidth.
 
