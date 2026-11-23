@@ -11,7 +11,7 @@
   - **Core** — минимальный профиль (файл `xep-svg-whiteboarding-minimal.xml`);
   - **Full** — расширенный профиль (файл `xep-svg-whiteboarding-extended.xml`).
 - Ключевые слова **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, **MAY** трактуются по RFC 2119/BCP 14.
-- Профиль **Psi-native** (namespace `http://jabber.org/protocol/sxe`, кастомный `<negotiation>`) — **deprecated**; новые реализации MUST NOT его использовать. Psi будет обновлён к настоящему стандарту.
+- Профиль **Psi-native** (namespace `http://jabber.org/protocol/sxe`, кастомный `<negotiation>`) — **deprecated**; новые реализации MUST NOT его использовать. Psi реализует настоящий стандарт начиная с версии 1.6 и больше не поддерживает профиль Psi-native.
 
 ## 2. Константы
 
@@ -35,7 +35,7 @@ Full-клиент MUST корректно работать с Core-пиром, �
 ## 4. Обнаружение
 
 - R4.1 Реализация MUST объявлять feature `urn:xmpp:jingle:1`, `urn:xmpp:sxe:0`, `urn:xmpp:jingle:transports:sxe`, `urn:xmpp:jingle:apps:svg-whiteboard:0`.
-- R4.2 Реализация SHOULD объявлять disco-identity категории `collaboration` типа `sxe`.
+- R4.2 Реализация MAY объявлять disco-identity категории `collaboration` типа `sxe`; развёрнутые клиенты её не объявляют, поэтому требовать её от пира MUST NOT.
 - R4.3 Полный клиент SHOULD использовать XEP-0115 (Entity Capabilities) для определения возможностей пира.
 - R4.4 Запускать сессию MUST только при наличии у пира app-namespace доски и SXE-транспорта.
 
@@ -43,15 +43,18 @@ Full-клиент MUST корректно работать с Core-пиром, �
 
 - R5.1 Управление сессией MUST выполняться по XEP-0166 (`session-initiate`/`session-accept`/`session-terminate`).
 - R5.2 `<description>` MUST быть в namespace `urn:xmpp:jingle:apps:svg-whiteboard:0` (в профиле Core без дочерних элементов).
-- R5.3 `<transport>` MUST быть в namespace `urn:xmpp:jingle:transports:sxe` и MUST содержать минимум один `<host/>`.
+- R5.3 `<transport>` MUST быть в namespace `urn:xmpp:jingle:transports:sxe` и MUST содержать минимум один `<host/>`; в сессии один-на-один это полный JID создателя content, который и является host.
 - R5.4 При отказе из-за неподдержки приложения SHOULD использоваться reason `unsupported-applications`.
+- R5.5 Атрибут `session` у `<sxe>` MUST равняться Jingle `sid`; Jingle-сессия несёт не более одного content доски, второй MUST быть отклонён.
+- R5.6 Jingle `senders` у content задаёт участников, которым разрешено править: вне `senders` `<new>`/`<set>`/`<remove>` не отправляются, а полученные такие правки игнорируются; `none` замораживает документ; `content-modify` меняет его без новой передачи состояния.
 
 ## 6. Соединение и синхронизация состояния
 
-- R6.1 SXE-полезная нагрузка MUST быть элементом `<sxe xmlns='urn:xmpp:sxe:0'>` внутри `<message>`.
-- R6.2 `<sxe>` MUST содержать `session` и `id`; `id` MUST быть уникален в пределах сессии для отправителя.
+- R6.1 SXE-полезная нагрузка MUST быть элементом `<sxe xmlns='urn:xmpp:sxe:0'>` внутри `<message>`; в сессии один-на-один — один `<sxe>` на сообщение, на полный JID пира, без `type`, и SHOULD нести подсказки XEP-0334 `<no-store/>` и `<no-copy/>`.
+- R6.2 `<sxe>` MUST содержать `session` и `id`; `id` MUST быть уникален в пределах сессии для отправителя; повтор `id` от того же отправителя MUST игнорироваться.
 - R6.3 Присоединение MUST выполняться элементом `<connect/>`.
-- R6.4 Передача состояния MUST быть заключена в `<state>` с `<document-begin/>` … `<document-end/>`; `prolog` у `<document-begin/>` содержит XML-пролог как `data:`-URI (RFC 2397).
+- R6.4 Передача состояния MUST быть заключена в `<state>` с `<document-begin/>` … `<document-end/>`; `prolog` у `<document-begin/>` содержит XML-пролог как `data:`-URI (RFC 2397), возможно пустой (`data:text/xml,`).
+- R6.4.1 Состояние MAY содержать только текущую версию каждой записи: `version` у `<new>` и та же `version` у кусков `<set replacen='0'>`, продолжающих разбитые символьные данные. Host не отправляет присоединяющемуся правок до его состояния; `last-sender`/`last-id` тогда пустые.
 - R6.5 Во время передачи состояния отправитель MUST NOT отправлять другие `<sxe>`-элементы между `<document-begin/>` и `<document-end/>`.
 - R6.6 Получатель MUST NOT применять входящие правки до обработки `<document-end/>`.
 
@@ -65,13 +68,15 @@ Full-клиент MUST корректно работать с Core-пиром, �
 - R7.6 Трансформации MUST выражаться SVG-атрибутом `transform` (канонически — `matrix(...)`).
 - R7.7 Изображения: Core MUST использовать inline `data:`-URI; Full MAY использовать URL (XEP-0363/XEP-0234) с обязательным fallback на `data:`.
 - R7.8 Метаданные (`<title>`, `<desc>`, `<defs>`) MUST NOT трактоваться как drawable-элементы и SHOULD сохраняться.
-- R7.9 Текст SHOULD представляться путями (например, штриховым шрифтом); отдельного элемента текста профиль не вводит.
+- R7.9 Текст SHOULD представляться путями (например, штриховым шрифтом или контурами глифов); отдельного элемента текста профиль не вводит. Полученный `<text>` MUST всё равно отображаться.
 
 ## 8. Правки
 
 - R8.1 Правки MUST выполняться элементами `<new>`/`<set>`/`<remove>` внутри `<state>`.
 - R8.2 `<new>` MUST содержать `rid` и `type`; `parent` обязателен везде, кроме корня.
 - R8.3 `<set>` и `<remove>` MUST использовать атрибут `target` (НЕ `rid`).
+- R8.3.1 `<new type='element'>` SHOULD нести `ns='http://www.w3.org/2000/svg'`; получатель MUST считать запись элемента без `ns`, родитель которой — SVG-элемент, SVG-элементом (развёрнутые клиенты `ns` опускают).
+- R8.3.2 `<sxe>` SHOULD быть меньше 16 KiB данных атрибутов; символьные данные больше примерно 8 KiB SHOULD разбиваться на `<new>` и куски `<set replacefrom replacen='0'>`.
 - R8.4 Частичная замена символьных данных SHOULD использовать `replacefrom`/`replacen` вместе с `chdata`.
 - R8.5 `rid` удалённых записей MUST NOT переиспользоваться в пределах сессии.
 - R8.6 Реализация MUST корректно обрабатывать non-commutative правки (`<set>`) согласно модели версий XEP-0284.
@@ -80,7 +85,9 @@ Full-клиент MUST корректно работать с Core-пиром, �
 
 - R9.1 Расширения MUST быть опциональными и согласуемыми; Core-пир MUST NOT требовать их наличия.
 - R9.2 HTTP File Upload (XEP-0363) MUST использоваться только если пир объявляет `urn:xmpp:http:upload:0`.
-- R9.3 Jingle File Transfer (XEP-0234) и Jingle Message Initiation (XEP-0353) MAY использоваться как альтернативные каналы/способы запуска.
+- R9.3 Jingle File Transfer (XEP-0234) и Jingle Message Initiation (XEP-0353) MAY использоваться как альтернативные каналы/способы запуска. Предложение отправляется на bare JID с `<description/>` доски; `sid` сессии равен id предложения.
+- R9.3.1 `urn:xmpp:sxe:0#connections`: полезная нагрузка MAY идти по надёжному упорядоченному message-oriented Jingle-соединению (ICE с SCTP data channel), один `<sxe>` на сообщение, с откатом на SXE-транспорт через `transport-replace`; предлагается только пирам, объявившим feature.
+- R9.3.2 `urn:xmpp:sxe:0#omemo`: полезная нагрузка в сообщениях MAY защищаться OMEMO 2 / SCE (`encryption='urn:xmpp:omemo:2'` у SXE-транспорта, пустой маршрутный `<sxe session/>` рядом с конвертом); предлагается только пирам, объявившим feature.
 - R9.4 При недоступности расширения реализация MUST деградировать к соответствующему поведению Core (например, inline `data:`-URI).
 
 ## 10. Ошибки, лимиты, безопасность
@@ -94,7 +101,7 @@ Full-клиент MUST корректно работать с Core-пиром, �
 ## 11. Чеклист conformance
 
 **Core:**
-- [ ] Объявлены 4 feature (R4.1) и identity `collaboration/sxe` (R4.2).
+- [ ] Объявлены 4 feature (R4.1); identity `collaboration/sxe` от пиров не требуется (R4.2).
 - [ ] Jingle-сессия с `<description>` и `<transport>`/`<host>` (R5.1–R5.3).
 - [ ] `<connect/>`, передача состояния через `<state>` (R6.3–R6.6).
 - [ ] SVG Tiny 1.2, `viewBox`, `id`, `primary-weight` (R7.1–R7.4).

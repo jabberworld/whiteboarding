@@ -39,6 +39,9 @@
     <spec>XEP-0284</spec>
     <spec>XEP-0353</spec>
     <spec>XEP-0363</spec>
+    <spec>XEP-0334</spec>
+    <spec>XEP-0384</spec>
+    <spec>XEP-0420</spec>
   </dependencies>
   <supersedes>XEP-0113</supersedes>
   <supersededby/>
@@ -81,13 +84,14 @@
     An earlier whiteboarding profile used by the Psi client relied on a
     pre-standardization (ProtoXEP) form of SXE with a custom negotiation
     vocabulary and the namespace <tt>http://jabber.org/protocol/sxe</tt>. That
-    profile is deprecated. This specification is the standards-based replacement,
-    and Psi is expected to be updated to implement it.
+    profile is deprecated. This specification is the standards-based replacement.
+    Psi implements it since version 1.6 and no longer supports the deprecated
+    profile.
   </p>
   <p>
     This document is the extended profile. It is a strict superset of the
     minimal profile: every requirement of the minimal profile applies, and the
-    additional capabilities in <link url='#extensions'>Section 12</link> are
+    additional capabilities in <link url='#extensions'>Optional Extensions</link> are
     optional and individually negotiated. A client implementing only the minimal
     profile can participate in the same session.
   </p>
@@ -125,7 +129,7 @@
   <p>
     The shared XML document of the session is an SVG document whose root element
     is &lt;svg/&gt; in the namespace <tt>http://www.w3.org/2000/svg</tt>. The
-    document conventions are defined in <link url='#document'>Section 10</link>.
+    document conventions are defined in <link url='#document'>Initial Document</link>.
   </p>
 </section1>
 
@@ -149,16 +153,23 @@
           action='session-initiate'
           initiator='kingclaudius@shakespeare.lit/castle'
           sid='851ba2'>
-    <content creator='initiator' name='whiteboard'>
+    <content creator='initiator' name='whiteboard' senders='both'>
       <description xmlns='urn:xmpp:jingle:apps:svg-whiteboard:0'/>
       <transport xmlns='urn:xmpp:jingle:transports:sxe'>
-        <host>kingclaudius@shakespeare.lit</host>
+        <host>kingclaudius@shakespeare.lit/castle</host>
       </transport>
     </content>
   </jingle>
 </iq>
 ]]></example>
     <p>The responder acknowledges the offer as described in XEP-0166.</p>
+    <p>The following rules make the XEP-0284 session binding precise:</p>
+    <ul>
+      <li>In a one-to-one session the <tt>&lt;host/&gt;</tt> element MUST contain the full JID of the entity that created the content (normally the initiator). That entity is the host and answers <tt>&lt;connect/&gt;</tt>.</li>
+      <li>The <tt>session</tt> attribute of every <tt>&lt;sxe/&gt;</tt> element of the session MUST be the Jingle <tt>sid</tt>. Consequently a Jingle session carries at most one whiteboard content; a second one MUST be refused (for example with <tt>content-reject</tt> and the reason <tt>incompatible-parameters</tt>).</li>
+      <li>The whiteboard content MAY share a Jingle session with other contents (for example audio in a call) and MAY be added to a running session with <tt>content-add</tt>.</li>
+      <li>The Jingle <tt>senders</tt> attribute of the content names the participants allowed to edit. A participant outside <tt>senders</tt> MUST NOT send <tt>&lt;new/&gt;</tt>, <tt>&lt;set/&gt;</tt> or <tt>&lt;remove/&gt;</tt>, and such edits received from it MUST be ignored; <tt>&lt;connect/&gt;</tt> and the state transfer remain allowed. The value <tt>none</tt> freezes the document. A change with <tt>content-modify</tt> keeps the records and versions and needs no new state transfer.</li>
+    </ul>
   </section2>
 
   <section2 topic='Acceptance' anchor='session-accept'>
@@ -172,10 +183,10 @@
           action='session-accept'
           initiator='kingclaudius@shakespeare.lit/castle'
           sid='851ba2'>
-    <content creator='initiator' name='whiteboard'>
+    <content creator='initiator' name='whiteboard' senders='both'>
       <description xmlns='urn:xmpp:jingle:apps:svg-whiteboard:0'/>
       <transport xmlns='urn:xmpp:jingle:transports:sxe'>
-        <host>kingclaudius@shakespeare.lit</host>
+        <host>kingclaudius@shakespeare.lit/castle</host>
       </transport>
     </content>
   </jingle>
@@ -220,8 +231,10 @@
     <li><tt>urn:xmpp:jingle:apps:svg-whiteboard:0</tt> — this application type is supported.</li>
   </ul>
   <p>
-    It SHOULD also expose the shared-editing identity described in XEP-0284
+    It MAY also expose the shared-editing identity described in XEP-0284
     (discovery identity type <tt>sxe</tt> in the <tt>collaboration</tt> category).
+    Deployed clients do not advertise it, so an entity MUST NOT require it of a
+    peer.
   </p>
   <example caption='Service discovery response advertising SVG whiteboarding'>
     <![CDATA[
@@ -247,19 +260,30 @@
     carried in a &lt;message/&gt;, with REQUIRED <tt>session</tt> and
     <tt>id</tt> attributes.
   </p>
+  <ul>
+    <li>In a one-to-one session each &lt;sxe/&gt; element is sent in its own &lt;message/&gt; to the peer's full JID, without a <tt>type</tt> attribute.</li>
+    <li>The message SHOULD carry the &lt;no-store/&gt; and &lt;no-copy/&gt; hints of Message Processing Hints (XEP-0334): the payload is useless outside the session and must not end up in archives, offline storage or on other resources.</li>
+    <li>A receiver routes the payload by the sender's full JID and the <tt>session</tt> attribute. A &lt;sxe/&gt; element whose <tt>id</tt> was already received from the same sender MUST be ignored. A simple counter per sender and session is sufficient for <tt>id</tt>.</li>
+    <li>A &lt;sxe/&gt; element SHOULD stay below 16 KiB of attribute data, since servers limit stanza sizes. Character data longer than about 8 KiB SHOULD be sent as a <tt>&lt;new/&gt;</tt> with the first part followed by <tt>&lt;set/&gt;</tt> elements with <tt>replacefrom</tt> at the current end and <tt>replacen='0'</tt>.</li>
+  </ul>
 
   <section2 topic='Connecting' anchor='connect'>
     <p>
       To join a session, an entity sends an SXE <tt>&lt;connect/&gt;</tt> element
-      to the host.
+      to the host. In a one-to-one session the responder is the joiner and sends
+      <tt>&lt;connect/&gt;</tt> once the session is accepted. The joiner sends no
+      edits before it has received the state.
     </p>
     <example caption='Joiner connects to the session'>
       <![CDATA[
 <message from='laertes@shakespeare.lit/castle'
-         to='kingclaudius@shakespeare.lit/castle'>
+         to='kingclaudius@shakespeare.lit/castle'
+         id='sxe-e'>
   <sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='e'>
     <connect/>
   </sxe>
+  <no-store xmlns='urn:xmpp:hints'/>
+  <no-copy xmlns='urn:xmpp:hints'/>
 </message>
 ]]></example>
   </section2>
@@ -284,7 +308,9 @@
 ]]></example>
     <p>
       The joiner accepts one offer with <tt>&lt;accept-state/&gt;</tt> and refuses
-      unwanted offers with <tt>&lt;refuse-state/&gt;</tt>.
+      unwanted offers with <tt>&lt;refuse-state/&gt;</tt>. In a one-to-one session
+      the host answers every <tt>&lt;connect/&gt;</tt> with an offer, and a joiner
+      refuses an offer it did not ask for or whose description does not match.
     </p>
     <example caption='Joiner accepts the state offer'>
       <![CDATA[
@@ -299,15 +325,21 @@
       The state is sent inside a <tt>&lt;state/&gt;</tt> element bracketed by
       <tt>&lt;document-begin/&gt;</tt> and <tt>&lt;document-end/&gt;</tt>. The
       <tt>prolog</tt> attribute of <tt>&lt;document-begin/&gt;</tt> carries the
-      XML prolog (including the DOCTYPE) as a <tt>data:</tt> URI.
+      XML prolog (including the DOCTYPE) as a <tt>data:</tt> URI. An empty prolog
+      (<tt>data:text/xml,</tt>) is allowed.
     </p>
+    <ul>
+      <li>The state MAY consist of the current version of each record only, instead of version 0 and all later edits. A &lt;new/&gt; element of the state then carries the record's current <tt>version</tt>, and the &lt;set/&gt; elements that continue split character data of that record carry the same <tt>version</tt>. Between <tt>&lt;document-begin/&gt;</tt> and <tt>&lt;document-end/&gt;</tt> the receiver sets the version of the target record to the value of the <tt>version</tt> attribute, as XEP-0284 requires for history.</li>
+      <li>The host includes its own edits made before the joiner is synchronized in the state and sends no edits to the joiner before the state. The <tt>last-sender</tt> and <tt>last-id</tt> attributes of <tt>&lt;document-end/&gt;</tt> are then empty.</li>
+      <li>The joiner stores edits received between accepting the offer and <tt>&lt;document-end/&gt;</tt> and applies them afterwards, skipping those up to <tt>last-sender</tt>/<tt>last-id</tt>.</li>
+    </ul>
     <example caption='Sending the state of a new, empty whiteboard'>
       <![CDATA[
 <message from='kingclaudius@shakespeare.lit/castle'
          to='laertes@shakespeare.lit/castle'>
   <sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='b'>
     <state>
-      <document-begin prolog='data:text/xml,%3C%3Fxml%20version%3D%271.0%27%3F%3E%0A%3C%21DOCTYPE%20svg%20PUBLIC%20%27-%2F%2FW3C%2F%2FDTD%20SVG%201.1%2F%2FEN%27%20%27http%3A%2F%2Fwww.w3.org%2FGraphics%2FSVG%2F1.1%2FDTS%2Fsvg11.dtd%27%3E'/>
+      <document-begin prolog='data:text/xml,%3C%3Fxml%20version%3D%271.0%27%3F%3E%0A%3C%21DOCTYPE%20svg%20PUBLIC%20%27-%2F%2FW3C%2F%2FDTD%20SVG%201.1%2F%2FEN%27%20%27http%3A%2F%2Fwww.w3.org%2FGraphics%2FSVG%2F1.1%2FDTD%2Fsvg11.dtd%27%3E'/>
       <new rid='0' type='element' ns='http://www.w3.org/2000/svg' name='svg' primary-weight='0'/>
       <new rid='1' type='attr' name='version' chdata='1.2' parent='0'/>
       <new rid='2' type='attr' name='baseProfile' chdata='tiny' parent='0'/>
@@ -331,6 +363,13 @@
     <li><tt>&lt;remove/&gt;</tt> — remove a record (attribute <tt>target</tt>).</li>
   </ul>
   <p>
+    Every <tt>&lt;new/&gt;</tt> of type <tt>element</tt> SHOULD carry
+    <tt>ns='http://www.w3.org/2000/svg'</tt> (or the namespace of a foreign
+    element). Deployed clients omit <tt>ns</tt> on the children of the root, so a
+    receiver MUST treat an element record without <tt>ns</tt> whose parent is in
+    the SVG namespace as an SVG element.
+  </p>
+  <p>
     Ordering among siblings is determined by <tt>primary-weight</tt> and, on
     ties, by the secondary weight (RID comparison) as defined in XEP-0284. The
     following examples use the root RID <tt>0</tt> from
@@ -347,7 +386,7 @@
       <![CDATA[
 <sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='8'>
   <state>
-    <new rid='8' type='element' name='path' parent='0' primary-weight='1'/>
+    <new rid='8' type='element' ns='http://www.w3.org/2000/svg' name='path' parent='0' primary-weight='1'/>
     <new rid='9' type='attr' name='id' chdata='e1f2a3b4' parent='8'/>
     <new rid='10' type='attr' name='d' chdata='M 100 100 L 300 100 L 200 300 Z' parent='8'/>
     <new rid='11' type='attr' name='stroke' chdata='#ff0000' parent='8'/>
@@ -411,6 +450,11 @@
 </sxe>
 ]]></example>
     <p>RIDs of removed records MUST NOT be reused within the session.</p>
+    <p>
+      As XEP-0284 requires, a sender removes the records of child nodes before
+      the record of their parent. A receiver that removes a record with
+      remaining children removes them as well.
+    </p>
   </section2>
 
   <section2 topic='Grouping and Ungrouping' anchor='edit-group'>
@@ -422,7 +466,7 @@
       <![CDATA[
 <sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='13'>
   <state>
-    <new rid='30' type='element' name='g' parent='0' primary-weight='5'/>
+    <new rid='30' type='element' ns='http://www.w3.org/2000/svg' name='g' parent='0' primary-weight='5'/>
     <new rid='31' type='attr' name='id' chdata='e5c7d9e0' parent='30'/>
     <set target='8' version='1' parent='30'/>
     <set target='20' version='1' parent='30'/>
@@ -456,7 +500,7 @@
       <![CDATA[
 <sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='15'>
   <state>
-    <new rid='40' type='element' name='image' parent='0' primary-weight='6'/>
+    <new rid='40' type='element' ns='http://www.w3.org/2000/svg' name='image' parent='0' primary-weight='6'/>
     <new rid='41' type='attr' name='x' chdata='120' parent='40'/>
     <new rid='42' type='attr' name='y' chdata='80' parent='40'/>
     <new rid='43' type='attr' name='width' chdata='64' parent='40'/>
@@ -535,7 +579,9 @@
     <li>The root element MUST be &lt;svg/&gt; in <tt>http://www.w3.org/2000/svg</tt>.</li>
     <li>The canvas MUST be described by the <tt>viewBox</tt> attribute.</li>
     <li>SVG Tiny 1.2 (or a compatible profile) SHOULD be used; <tt>baseProfile='tiny'</tt> is RECOMMENDED.</li>
-    <li>Drawable content consists of SVG elements such as &lt;path/&gt;, &lt;image/&gt;, &lt;g/&gt; and basic shapes.</li>
+    <li>Drawable content consists of SVG elements such as &lt;path/&gt;, &lt;image/&gt;, &lt;g/&gt; and basic shapes (&lt;rect/&gt;, &lt;ellipse/&gt;, &lt;polygon/&gt;).</li>
+    <li>Text SHOULD be inserted as outlines (&lt;path/&gt;) so that it looks the same for every participant. A receiver MUST still render a &lt;text/&gt; element it receives.</li>
+    <li>Colours SHOULD be written as <tt>#rrggbb</tt>, with transparency in <tt>stroke-opacity</tt>, <tt>fill-opacity</tt> or <tt>opacity</tt>.</li>
     <li>Metadata (&lt;title/&gt;, &lt;desc/&gt;, &lt;defs/&gt;) MUST NOT be treated as drawable items and SHOULD be preserved.</li>
   </ul>
 </section1>
@@ -555,6 +601,21 @@
       <tr><td>Shared document</td><td>An SVG document (namespace <tt>http://www.w3.org/2000/svg</tt>)</td></tr>
       <tr><td><tt>&lt;description/&gt;</tt> content</td><td>Empty in the minimal profile</td></tr>
     </table>
+  </section2>
+
+  <section2 topic='Clarifications of XEP-0284' anchor='def-sxe'>
+    <p>
+      This profile was checked against XEP-0284 version 0.1.4 and resolves the
+      following points for whiteboard sessions:
+    </p>
+    <ul>
+      <li>The SXE <tt>session</tt> is the Jingle <tt>sid</tt>; one whiteboard content per Jingle session.</li>
+      <li>The one-to-one host is a full JID (the XEP-0284 example shows a bare JID, which cannot receive the payload of a specific session).</li>
+      <li>Message type and processing hints of the payload, duplicate <tt>id</tt> handling and size limits (<link url='#state'>Connecting and Initial State Synchronization</link>).</li>
+      <li>State transfer with current versions only (<link url='#state-send'>Sending the State</link>).</li>
+      <li>XEP-0284 states that the namespace of a node equals the <tt>name</tt> field; the <tt>ns</tt> field is meant. Element records without <tt>ns</tt> under the SVG root are SVG elements.</li>
+      <li>The meaning of Jingle <tt>senders</tt> for a shared document (<link url='#session-initiate'>Initiation</link>).</li>
+    </ul>
   </section2>
 
   <section2 topic='XML Schema' anchor='def-schema'>
@@ -684,7 +745,7 @@
       <![CDATA[
 <sxe xmlns='urn:xmpp:sxe:0' session='851ba2' id='20'>
   <state>
-    <new rid='40' type='element' name='image' parent='0' primary-weight='6'/>
+    <new rid='40' type='element' ns='http://www.w3.org/2000/svg' name='image' parent='0' primary-weight='6'/>
     <new rid='41' type='attr' name='x' chdata='120' parent='40'/>
     <new rid='42' type='attr' name='y' chdata='80' parent='40'/>
     <new rid='43' type='attr' name='width' chdata='640' parent='40'/>
@@ -716,6 +777,55 @@
       An implementation MAY use Jingle Message Initiation (XEP-0353) to propose a
       whiteboard inside an existing chat, so that the recipient sees a proposal
       and accepts with a single action instead of a full Jingle negotiation.
+    </p>
+    <p>
+      The proposal goes to the bare JID, so that every device of the contact can
+      ring. It contains the &lt;description/&gt; element of this application type.
+      Devices answer <tt>&lt;ringing/&gt;</tt>; the device that sends
+      <tt>&lt;proceed/&gt;</tt> becomes the Jingle peer, and the initiator then
+      sends <tt>session-initiate</tt> with the proposal id as <tt>sid</tt>.
+      <tt>&lt;reject/&gt;</tt>, <tt>&lt;retract/&gt;</tt> and <tt>&lt;finish/&gt;</tt>
+      are used as for calls. Without a capable device that advertises
+      XEP-0353, the session is initiated directly.
+    </p>
+    <example caption='Proposing a whiteboard'>
+      <![CDATA[
+<message from='kingclaudius@shakespeare.lit/castle'
+         to='laertes@shakespeare.lit'
+         type='chat'
+         id='p1'>
+  <propose xmlns='urn:xmpp:jingle-message:0' id='851ba2'>
+    <description xmlns='urn:xmpp:jingle:apps:svg-whiteboard:0'/>
+  </propose>
+  <store xmlns='urn:xmpp:hints'/>
+</message>
+]]></example>
+  </section2>
+
+  <section2 topic='Payload on Jingle Connections' anchor='ext-connections'>
+    <p>
+      An entity that can carry the SXE payload on a reliable, ordered,
+      message-oriented Jingle connection (today an ICE transport with an SCTP
+      data channel) advertises <tt>urn:xmpp:sxe:0#connections</tt>. The content
+      creator offers such a transport only to a peer with that feature; otherwise
+      it offers the SXE transport. On the connection, each message is one
+      UTF-8 serialized &lt;sxe/&gt; element without the &lt;message/&gt; wrapper.
+      When the connection breaks, <tt>transport-replace</tt> moves the content to
+      the next transport, finally the SXE transport, and the joiner sends
+      <tt>&lt;connect/&gt;</tt> again. Stream transports and unreliable datagrams
+      are not used.
+    </p>
+  </section2>
+
+  <section2 topic='Protected Payload' anchor='ext-protected'>
+    <p>
+      An entity that can protect the SXE payload in messages end to end with
+      OMEMO 2 (XEP-0384) advertises <tt>urn:xmpp:sxe:0#omemo</tt>. The SXE
+      transport of such a session carries <tt>encryption='urn:xmpp:omemo:2'</tt>,
+      and the answer repeats it. Each &lt;sxe/&gt; element is then the content of a
+      Stanza Content Encryption (XEP-0420) envelope, sent next to an empty
+      &lt;sxe session='…'/&gt; element that routes the message. In such a session
+      unprotected payload is dropped.
     </p>
   </section2>
 
@@ -769,6 +879,8 @@
     <tr><td>HTTP File Upload (XEP-0363)</td><td>—</td><td>OPTIONAL</td></tr>
     <tr><td>Jingle File Transfer (XEP-0234)</td><td>—</td><td>OPTIONAL</td></tr>
     <tr><td>Jingle Message Initiation (XEP-0353)</td><td>—</td><td>OPTIONAL</td></tr>
+    <tr><td>Payload on Jingle connections (<tt>urn:xmpp:sxe:0#connections</tt>)</td><td>—</td><td>OPTIONAL</td></tr>
+    <tr><td>Protected payload (<tt>urn:xmpp:sxe:0#omemo</tt>)</td><td>—</td><td>OPTIONAL</td></tr>
   </table>
 </section1>
 

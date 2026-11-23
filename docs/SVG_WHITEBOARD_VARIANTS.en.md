@@ -39,7 +39,7 @@ A full client is compatible with a minimal peer: extensions are negotiated separ
 
 ## Status of the Psi Profile
 
-The old Psi profile (`http://jabber.org/protocol/sxe`, custom `<negotiation>`, an early revision of SXE) is **deprecated**. It is kept only as historical reference (the files `xep-collaborative-svg-whiteboarding.xml` and `PSI_WHITEBOARDING_VS_XEP0113.en.md`). New implementations must use the Jingle session and `urn:xmpp:sxe:0` according to XEP-0284.
+The old Psi profile (`http://jabber.org/protocol/sxe`, custom `<negotiation>`, an early revision of SXE) is **deprecated**. It is kept only as historical reference (the files `xep-collaborative-svg-whiteboarding.xml` and `PSI_WHITEBOARDING_VS_XEP0113.en.md`). New implementations must use the Jingle session and `urn:xmpp:sxe:0` according to XEP-0284. Psi itself implements this standard since version 1.6 and no longer supports its old profile.
 
 ## Mapping Psi-native → the New Standard
 
